@@ -1,0 +1,35 @@
+PackratFormat: 1.4
+PackratVersion: 0.5.0
+RVersion: 3.6.3
+Repos: CRAN=https://cloud.r-project.org
+
+Package: Rcpp
+Source: CRAN
+Version: 1.0.4.6
+Hash: 8b95553bc32a59321b8981aa02bfbf72
+
+Package: data.table
+Source: CRAN
+Version: 1.12.8
+Hash: 283ad0e503ab521300c6d1d02e58d2ae
+
+Package: openxlsx
+Source: CRAN
+Version: 4.1.4
+Hash: 18a56281a43c891f7b7b7cccd45769b3
+Requires: Rcpp, stringi, zip
+
+Package: packrat
+Source: CRAN
+Version: 0.5.0
+Hash: 498643e765d1442ba7b1160a1df3abf9
+
+Package: stringi
+Source: CRAN
+Version: 1.4.6
+Hash: 076b0f115b37ca6d551ccff96b91114e
+
+Package: zip
+Source: CRAN
+Version: 2.0.4
+Hash: f86b0ae5776b2e3880871fb0e34e5e48
