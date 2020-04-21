@@ -1,4 +1,7 @@
 pattern,replacement
+ferro_oxalato_eea,ferro_oxalato_eaa
+ferro_aquaregia_ipcms,ferro_aquaregia_icpms
+ferro_ditionito_eea,ferro_ditionito_eaa
 ferro_mehlich_xxx,ferro_mehlich1_xxx
 camada_numero,camada_id
 densidade_solo_xxx,dsi_xxx
