@@ -20,9 +20,12 @@ identificacao <-
   })
 
 # processar dados de identificação
-# campo de identificação são obtidos da planilha padrão
-url <- paste0('https://docs.google.com/spreadsheets/d/', '1rXIiT1zSYhFegSdAvE0yJX16q-bvXVNpYIYdd5YgjhI', 
-              '/export?format=csv&gid=', '1085102806')
+# campos de identificação são obtidos da planilha padrão armazenada no Google Drive
+# campos faltantes são inseridos; em seguida os campos são reordenados conforme o padrão
+# (esse processo também é realizado em publish.R)
+id_campo <- 
+  paste0('https://docs.google.com/spreadsheets/d/', '1rXIiT1zSYhFegSdAvE0yJX16q-bvXVNpYIYdd5YgjhI', 
+         '/export?format=csv&gid=', '1085102806')
 padrao <- read.csv(url, header = TRUE, stringsAsFactors = FALSE)
 identificacao <- 
   parallel::mclapply(

@@ -7,6 +7,8 @@
 # 2. Substituir campo autor_nome_email por dados_autor
 # 3. Substituir campo dados_referencia por dados_publicacao
 
+rm(list = ls())
+
 # variables ----
 ctb <- "ctb0804"
 
@@ -20,23 +22,34 @@ publico <- path.expand('~/ownCloud/febr-repo/publico/')
 # requisito: arquivo XLSX com a data de hoje
 xlsxFile <- paste(processamento, ctb, '/', Sys.Date(), '-', ctb, '.xlsx', sep = '')
 
-# processar tabela identificacao
+# processar tabela 'identificacao'
+# campos de identificação são obtidos da planilha padrão armazenada no Google Drive
+# campos faltantes são inseridos; em seguida os campos são reordenados conforme o padrão
+# (esse processo também é realizado em make-index.R)
+id_campo <- 
+  paste0('https://docs.google.com/spreadsheets/d/', '1rXIiT1zSYhFegSdAvE0yJX16q-bvXVNpYIYdd5YgjhI', 
+         '/export?format=csv&gid=', '1085102806')
+id_campo <- read.csv(id_campo, header = TRUE, stringsAsFactors = FALSE)
 identificacao <- openxlsx::read.xlsx(xlsxFile, sheet = 'identificacao')
-consistencia <- identificacao[identificacao$campo == 'dados_consistencia', 'valor']
+identificacao$campo[identificacao$campo == 'autor_nome_email'] <- 'dados_autor'
+identificacao$campo[identificacao$campo == 'dados_referencia'] <- 'dados_publicacao'
+identificacao <- merge(identificacao, id_campo['campo'], all.y = TRUE)
+identificacao <- identificacao[match(id_campo$campo, identificacao$campo), ]
 file <- paste0(publico, ctb, '/', ctb, '-identificacao.txt', sep = '')
 if(!dir.exists(dirname(file))) {
   dir.create(dirname(file))
 }
 write.table(x = identificacao, file = file, sep = '\t', dec = ',', row.names = FALSE)
 
-# processar tabela versionamento
+# processar tabela 'versionamento'
 file <- paste0(publico, ctb, '/', ctb, '-versionamento.txt')
 write.table(
   x = openxlsx::read.xlsx(xlsxFile, sheet = 'versionamento'), 
   file = file, sep = '\t', dec = ',', row.names = FALSE)
 
-# processar tabelas metadado, observacao e camada
+# processar tabelas 'metadado', 'observacao' e 'camada'
 # requisito: consistência estrutural
+consistencia <- identificacao[identificacao$campo == 'dados_consistencia', 'valor']
 if (consistencia == 'consistência estrutural') {
   tab <- c('metadado', 'observacao', 'camada')
   for (i in 1:length(tab)) {
