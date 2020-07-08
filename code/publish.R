@@ -8,7 +8,7 @@
 # 3. Substituir campo dados_referencia por dados_publicacao
 
 # variables ----
-ctb <- ""
+ctb <- "ctb0804"
 
 # main ########################################################################################################
 
@@ -23,17 +23,17 @@ xlsxFile <- paste(processamento, ctb, '/', Sys.Date(), '-', ctb, '.xlsx', sep = 
 # processar tabela identificacao
 identificacao <- openxlsx::read.xlsx(xlsxFile, sheet = 'identificacao')
 consistencia <- identificacao[identificacao$campo == 'dados_consistencia', 'valor']
-file <- paste(publico, ctb, '/', ctb, '-identificacao.csv', sep = '')
+file <- paste0(publico, ctb, '/', ctb, '-identificacao.txt', sep = '')
 if(!dir.exists(dirname(file))) {
   dir.create(dirname(file))
 }
-write.table(x = identificacao, file = file, sep = ';', dec = ',', row.names = FALSE)
+write.table(x = identificacao, file = file, sep = '\t', dec = ',', row.names = FALSE)
 
 # processar tabela versionamento
-file <- paste(publico, ctb, '/', ctb, '-versionamento.csv', sep = '')
+file <- paste0(publico, ctb, '/', ctb, '-versionamento.txt')
 write.table(
   x = openxlsx::read.xlsx(xlsxFile, sheet = 'versionamento'), 
-  file = file, sep = ';', dec = ',', row.names = FALSE)
+  file = file, sep = '\t', dec = ',', row.names = FALSE)
 
 # processar tabelas metadado, observacao e camada
 # requisito: consistência estrutural
@@ -42,11 +42,11 @@ if (consistencia == 'consistência estrutural') {
   for (i in 1:length(tab)) {
     x <- openxlsx::read.xlsx(xlsxFile, sheet = tab[i])
     x <- x[colnames(x) != '']
-    file <- paste(publico, ctb, '/', ctb, '-', tab[i], '.csv', sep = '')
-    write.table(x = x, file = file, sep = ';', dec = ',', row.names = FALSE)
+    file <- paste0(publico, ctb, '/', ctb, '-', tab[i], '.txt')
+    write.table(x = x, file = file, sep = '\t', dec = ',', row.names = FALSE)
   }
 }
 
 # copiar workbook para diretório público
-cmd <- paste('cp', xlsxFile, paste(publico, ctb, '/', ctb, '.xlsx', sep = ''))
+cmd <- paste('cp', xlsxFile, paste0(publico, ctb, '/', ctb, '.xlsx'))
 system(cmd)
