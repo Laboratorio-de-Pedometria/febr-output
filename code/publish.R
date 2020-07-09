@@ -1,11 +1,9 @@
 # title: Repositório Brasileiro Livre para Dados Abertos do Solo
 # subtitle: Publicação de conjuntos de dados
 # autor: Alessandro Samuel-Rosa
-
-# TODO ----
-# 1. Adicionar campo dados_idioma
-# 2. Substituir campo autor_nome_email por dados_autor
-# 3. Substituir campo dados_referencia por dados_publicacao
+# summary: Publicar um conjunto de dados processado no dia de hoje, criando um arquivo de texto TXT para
+#   cada uma das abas existentes, bem como uma cópia do arquivo XLSX. Todos eles são copiados/salvos no
+#   respectivo diretório do conjunto de dados no diretório 'public'. 
 
 # main ########################################################################################################
 rm(list = ls())
