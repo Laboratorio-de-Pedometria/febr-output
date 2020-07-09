@@ -1,0 +1,34 @@
+---
+title: "Repositório Brasileiro Livre para Dados Abertos do Solo"
+subtitle: "Descrição do diretório de arquivos do conjunto de dados"
+author: "Alessandro Samuel-Rosa"
+date: "`r Sys.Date()`"
+output: word_document
+---
+
+```{r, eval=FALSE, echo=FALSE}
+# Identificar diretórios públicos
+publico <- path.expand('~/ownCloud/febr-repo/publico')  
+dirs <- list.dirs(path = publico)[-1]
+
+# Copiar arquivo LEIAME.md para cada diretório
+cmd <- paste0('cp LEIAME.docx ', dirs)
+parallel::mclapply(cmd, system)
+```
+
+Este diretório de arquivos consiste do seguinte conteúdo:
+
+* `ctbxxx-identificacao.txt`: dados de identificação do conjunto de dados. Inclui título, descrição sumária, autores, entre outros.
+* `ctbxxx-versionamento.txt`: dados sobre o histórico de alteração dos dados contidos no conjunto de dados. Inclui versão, data e autor das alterações.
+* `ctbxxx-metadado.txt`: dados sobre os métodos de observação e amostragem do solo, incluindo métodos analíticos de campo e laboratório, unidades de medida e identificação do laboratório responsável pelas análises.
+* `ctbxxx-observacao.txt`: dados das observações ou perfis do solo. Pode incluir dados de localização geográfica, classificação taxonômica, uso da terra, clima, relevo, entre outros.
+* `ctbxxxx-camada.txt`: dados das camadas, horizontes ou amostras do solo. Pode incluir dados de propriedades morfológicas, físicas, químicas ou biológicas do solo, determinadas no campo ou em laboratório.
+
+Esses arquivos podem ser abertos em qualquer editor de texto plano ou planilha eletrônica.
+
+* Especificações:
+  + Codificação de caracteres: UTF-8
+  + Separador de colunas: tabulação (\\t)
+  + Separador decimal: vírgula (,)
+
+O arquivo `ctbxxxx.xlsx` reúne todos os arquivos TXT listados acima, cada um deles localizados em uma aba individual.
