@@ -7,12 +7,11 @@
 # 2. Substituir campo autor_nome_email por dados_autor
 # 3. Substituir campo dados_referencia por dados_publicacao
 
+# main ########################################################################################################
 rm(list = ls())
 
-# variables ----
-ctb <- "ctb0804"
-
-# main ########################################################################################################
+# conjunto de dados a ser publicado
+ctb <- ""
 
 # caminhos dos diretórios de dados
 processamento <- path.expand('~/ownCloud/febr-repo/processamento/')
