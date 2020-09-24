@@ -50,10 +50,6 @@ write.table(
 
 # processar tabelas 'metadado', 'observacao' e 'camada'
 # requisito: consistência estrutural
-campo_id <- 
-  paste0('https://docs.google.com/spreadsheets/d/', '1rXIiT1zSYhFegSdAvE0yJX16q-bvXVNpYIYdd5YgjhI', 
-         '/export?format=csv&gid=', '1343882776')
-campo_id <- read.csv(campo_id, header = TRUE, stringsAsFactors = FALSE)
 consistencia <- identificacao[identificacao$campo == 'dados_consistencia', 'valor']
 if (consistencia == 'consistência estrutural') {
   tab <- c('metadado', 'observacao', 'camada')
@@ -61,15 +57,6 @@ if (consistencia == 'consistência estrutural') {
     # i <- 1
     x <- openxlsx::read.xlsx(xlsxFile, sheet = tab[i])
     x <- x[colnames(x) != '']
-    if (tab[i] == "metadado") {
-      j <- campo_id$campo_id[campo_id$tabela_id == "observacao"] %in% x$campo_id[x$tabela_id == "observacao"]
-      k <- campo_id$campo_id[campo_id$tabela_id == "camada"] %in% x$campo_id[x$tabela_id == "camada"]
-      x <- rbind(
-        x[x$tabela_id == "observacao", ],
-        campo_id[campo_id$tabela_id == "observacao", ][!j, ],
-        x[x$tabela_id == "camada", ],
-        campo_id[campo_id$tabela_id == "camada", ][!k, ])
-    }
     file <- paste0(publico, ctb, '/', ctb, '-', tab[i], '.txt')
     write.table(x = x, file = file, sep = '\t', dec = ',', row.names = FALSE)
   }
