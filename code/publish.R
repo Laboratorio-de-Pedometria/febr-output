@@ -1,15 +1,19 @@
 # title: Repositório Brasileiro Livre para Dados Abertos do Solo
 # subtitle: Publicação de conjuntos de dados
 # autor: Alessandro Samuel-Rosa
-# summary: Publicar um conjunto de dados processado no dia de hoje, criando um arquivo de texto TXT para
-#   cada uma das abas existentes, bem como uma cópia do arquivo XLSX. Todos eles são copiados/salvos no
-#   respectivo diretório do conjunto de dados no diretório 'public'. 
-
+# summary:
+#   * Publicar conjunto de dados processado no dia de hoje, criando um arquivo de texto TXT para cada uma das
+#     planilhas existentes, bem como uma cópia do arquivo XLSX.
+#   * Os arquivos gerados são copiados/salvos no respectivo diretório do conjunto de dados no diretório 
+#     'public'.
+#   * Para conjuntos de dados sem consistência documental, ou seja, em que faltam todos ou alguns dos campos
+#     obrigatórios das tabelas observacao e camada, faz-se a adição dos mesmos a fim de permitir o 
+#     descarregamento dos arquivos via pacote febr sem erro.
 # main ########################################################################################################
 rm(list = ls())
 
 # conjunto de dados a ser publicado
-ctb <- ""
+ctb <- "ctb0025"
 
 # caminhos dos diretórios de dados
 processamento <- path.expand('~/ownCloud/febr-repo/processamento/')
@@ -19,9 +23,9 @@ publico <- path.expand('~/ownCloud/febr-repo/publico/')
 # requisito: arquivo XLSX com a data de hoje
 xlsxFile <- paste(processamento, ctb, '/', Sys.Date(), '-', ctb, '.xlsx', sep = '')
 
-# processar tabela 'identificacao'
-# campos de identificação são obtidos da planilha padrão armazenada no Google Drive
-# campos faltantes são inseridos; em seguida os campos são reordenados conforme o padrão
+# Processar tabela 'identificacao'
+# Campos de identificação são obtidos da planilha padrão armazenada no Google Drive
+# Campos faltantes são inseridos. Em seguida os campos são reordenados conforme o padrão
 # (esse processo também é realizado em make-index.R)
 id_campo <- 
   paste0('https://docs.google.com/spreadsheets/d/', '1rXIiT1zSYhFegSdAvE0yJX16q-bvXVNpYIYdd5YgjhI', 
@@ -46,12 +50,26 @@ write.table(
 
 # processar tabelas 'metadado', 'observacao' e 'camada'
 # requisito: consistência estrutural
+campo_id <- 
+  paste0('https://docs.google.com/spreadsheets/d/', '1rXIiT1zSYhFegSdAvE0yJX16q-bvXVNpYIYdd5YgjhI', 
+         '/export?format=csv&gid=', '1343882776')
+campo_id <- read.csv(campo_id, header = TRUE, stringsAsFactors = FALSE)
 consistencia <- identificacao[identificacao$campo == 'dados_consistencia', 'valor']
 if (consistencia == 'consistência estrutural') {
   tab <- c('metadado', 'observacao', 'camada')
   for (i in 1:length(tab)) {
+    # i <- 1
     x <- openxlsx::read.xlsx(xlsxFile, sheet = tab[i])
     x <- x[colnames(x) != '']
+    if (tab[i] == "metadado") {
+      j <- campo_id$campo_id[campo_id$tabela_id == "observacao"] %in% x$campo_id[x$tabela_id == "observacao"]
+      k <- campo_id$campo_id[campo_id$tabela_id == "camada"] %in% x$campo_id[x$tabela_id == "camada"]
+      x <- rbind(
+        x[x$tabela_id == "observacao", ],
+        campo_id[campo_id$tabela_id == "observacao", ][!j, ],
+        x[x$tabela_id == "camada", ],
+        campo_id[campo_id$tabela_id == "camada", ][!k, ])
+    }
     file <- paste0(publico, ctb, '/', ctb, '-', tab[i], '.txt')
     write.table(x = x, file = file, sep = '\t', dec = ',', row.names = FALSE)
   }
