@@ -26,7 +26,7 @@ identificacao <-
 id_campo <- 
   paste0('https://docs.google.com/spreadsheets/d/', '1rXIiT1zSYhFegSdAvE0yJX16q-bvXVNpYIYdd5YgjhI', 
          '/export?format=csv&gid=', '1085102806')
-padrao <- read.csv(url, header = TRUE, stringsAsFactors = FALSE)
+padrao <- read.csv(file = id_campo, header = TRUE, stringsAsFactors = FALSE)
 identificacao <- 
   parallel::mclapply(
     identificacao, function (id) {
