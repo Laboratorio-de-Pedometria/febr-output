@@ -2,14 +2,14 @@
 # subtitle: Publicação de conjuntos de dados
 # autor: Alessandro Samuel-Rosa
 # summary:
-#   * Publicar conjunto de dados processado no dia de hoje, criando um arquivo de texto TXT para cada uma das
-#     planilhas existentes, bem como uma cópia do arquivo XLSX.
-#   * Os arquivos gerados são copiados/salvos no respectivo diretório do conjunto de dados no diretório 
-#     'public'.
-#   * Para conjuntos de dados sem consistência documental, ou seja, em que faltam todos ou alguns dos campos
-#     obrigatórios das tabelas observacao e camada, faz-se a adição dos mesmos a fim de permitir o 
-#     descarregamento dos arquivos via pacote febr sem erro.
-# main ########################################################################################################
+#   * Publicar conjunto de dados processado no dia de hoje, criando um arquivo de texto TXT para
+#     cada uma das planilhas existentes, bem como uma cópia do arquivo XLSX.
+#   * Os arquivos gerados são copiados/salvos no respectivo diretório do conjunto de dados no
+#     diretório 'public'.
+#   * Para conjuntos de dados sem consistência documental, ou seja, em que faltam todos ou alguns
+#     dos campos obrigatórios das tabelas observacao e camada, faz-se a adição dos mesmos a fim de
+#     permitir o descarregamento dos arquivos via pacote febr sem erro.
+# main #############################################################################################
 rm(list = ls())
 
 # caminhos dos diretórios de dados
@@ -33,7 +33,7 @@ for (i in seq_along(ctb)) {
     full.names = TRUE)
   
   # Carregar workbook
-  workbook <- openxlsx::loadWorkbook(xlsxFile)
+  workbook <- openxlsx::loadWorkbook(file = xlsxFile)
   
   # Processar tabela 'identificacao'
   # Campos de identificação são obtidos da planilha padrão armazenada no Google Drive
