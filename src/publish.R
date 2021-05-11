@@ -88,7 +88,7 @@ for (i in seq_along(ctb)) {
     cmd <- paste('cp', xlsxFile, paste0(publico, '/', ctb[i], '/', ctb[i], '.xlsx'))
     system(cmd)
   }
-  
+
   # Atualizar catálogo de conjuntos de dados
   source("code/make-index.R")
 }
