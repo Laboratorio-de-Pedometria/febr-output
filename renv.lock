@@ -1,6 +1,6 @@
 {
   "R": {
-    "Version": "4.0.5",
+    "Version": "4.1.0",
     "Repositories": [
       {
         "Name": "CRAN",
@@ -88,17 +88,31 @@
     },
     "mime": {
       "Package": "mime",
-      "Version": "0.10",
+      "Version": "0.11",
       "Source": "Repository",
       "Repository": "CRAN",
-      "Hash": "26fa77e707223e1ce042b2b5d09993dc"
+      "Hash": "8974a907200fc9948d636fe7d85ca9fb"
+    },
+    "openxlsx": {
+      "Package": "openxlsx",
+      "Version": "4.2.4",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "f1b1ca1254ccb485dccc9c0dc65a2c36"
+    },
+    "remotes": {
+      "Package": "remotes",
+      "Version": "2.4.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "a85ebb35721573b196317b49ddd2dfe4"
     },
     "renv": {
       "Package": "renv",
-      "Version": "0.11.0",
+      "Version": "0.13.2",
       "Source": "Repository",
       "Repository": "CRAN",
-      "Hash": "1c3ef87cbb81c23ac96797781ec7aecc"
+      "Hash": "079cb1f03ff972b30401ed05623cbe92"
     },
     "rlang": {
       "Package": "rlang",
@@ -107,12 +121,19 @@
       "Repository": "CRAN",
       "Hash": "515f341d3affe0de9e4a7f762efb0456"
     },
-    "stringi": {
-      "Package": "stringi",
-      "Version": "1.6.1",
+    "rmarkdown": {
+      "Package": "rmarkdown",
+      "Version": "2.9",
       "Source": "Repository",
       "Repository": "CRAN",
-      "Hash": "3b9a9c9454b864b08713715396689b9e"
+      "Hash": "912c09266d5470516df4df7a303cde92"
+    },
+    "stringi": {
+      "Package": "stringi",
+      "Version": "1.6.2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "9df5e6f9a7fa11b84adf0429961de66a"
     },
     "stringr": {
       "Package": "stringr",
@@ -121,12 +142,19 @@
       "Repository": "CRAN",
       "Hash": "0759e6b6c0957edb1311028a49a35e76"
     },
-    "xfun": {
-      "Package": "xfun",
-      "Version": "0.22",
+    "tinytex": {
+      "Package": "tinytex",
+      "Version": "0.32",
       "Source": "Repository",
       "Repository": "CRAN",
-      "Hash": "eab2f8ba53809c321813e72ecbbd19ba"
+      "Hash": "db9a6f2cf147751322d22c9f6647c7bd"
+    },
+    "xfun": {
+      "Package": "xfun",
+      "Version": "0.24",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "88cdb9779a657ad80ad942245fffba31"
     },
     "yaml": {
       "Package": "yaml",
@@ -134,6 +162,13 @@
       "Source": "Repository",
       "Repository": "CRAN",
       "Hash": "2826c5d9efb0a88f657c7a679c7106db"
+    },
+    "zip": {
+      "Package": "zip",
+      "Version": "2.2.0",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "c7eef2996ac270a18c2715c997a727c5"
     }
   }
 }
