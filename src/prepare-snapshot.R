@@ -1,44 +1,46 @@
 # title: "Superconjunto de dados abertos do solo"
+# subtitle: FEBR snapshot
 # author: "Alessandro Samuel-Rosa"
+# 
+# Apresentacão
+# 
+# Processamento de dados do solo de diversos conjuntos de dados publicados no FEBR.
+# Os dados passam por limpeza, padronizaćão e, quando possível, harmonizaćão.
+# O (super)conjunto de dados resultante é disponibilicado num único arquivo TXT para reúso.
+# 
+# Variáveis incluídas
+# 
+# Tabela observacao:
+# 1. taxon_sibcs: classificação taxonômica pelo Sistema Brasileiro de Classificação de Solos;
+# 2. taxon_st: classificação taxonômica pelo Soil Taxonomy;
+# 3. taxon_wrb: classificação taxonômica pelo World Reference Base for Soil Resources;
+# 
+# Tabela camada:
+# 1. terrafina: conteúdo da fração terra fina (< 2 mm) no solo inteiro, em g/kg;
+# 2. carbono: conteúdo de carbono orgânico na fração terra fina, em g/kg;
+# 3. argila: conteúdo de argila total na fração terra fina, em g/kg;
+# 4. silte: conteúdo de silte total na fração terra fina, em g/kg;
+# 5. areia: conteúdo de areia total na fração terra fina, em g/kg;
+# 6. ctc: capacidade de troca de cátions da fração terra fina, em cmol_c/kg;
+# 7. ph: pH em água da fração terra fina, sem unidade de medida;
+# 8. ce: condutividade elétrica de fração terra fina, em mS/cm;
+# 9. densidade: densidade do solo inteiro, em kg/dm^3.
+# 
+# Dados adicionais:
+# - profundidade superior (profund_sup) e inferior (profund_inf) da camada amostrada, em cm;
+# - data de observação ou amostragem do solo (observacao_data);
+# - coordenadas do local de observaćão ou amostragem do solo (coord_x e coord_y), em graus decimais,
+#   usando SIRGAS 2000 (EPSG:4674) como sistema de referência de coordenadas.
+#   
+# Os procedimentos de limpeza dos dados são descritos abaixo. Já os procedimentos de padronização e
+# harmonização são descritos no pacote febr para o R (https://www.pedometria.org/software/febr/).
 
+library(febr)
+# library(dplyr)
+# library(magrittr)
 
-knitr::opts_chunk$set(echo = TRUE, fig.asp = 1)
-library(dplyr)
-library(magrittr)
-
-## Apresentação
-
-# Descarregamento e processamento (limpeza, padronização e harmonização) da versão corrente de um conjunto de 
-# 12 variáveis do solo disponíveis no ___febr___. São elas:
-
-# * Tabela _observacao_:
-#   - `taxon_sibcs`: classificação taxonômica pelo Sistema Brasileiro de Classificação do Solo;
-#   - `taxon_st`: classificação taxonômica pelo Soil Taxonomy;
-#   - `taxon_wrb`: classificação taxonômica pelo World Reference Base for Soil Resources;
-# * Tabela _camada_:
-#   - `terrafina`: conteúdo da fração terra fina (< 2 mm) no solo inteiro, em g/kg;
-#   - `carbono`: conteúdo de carbono orgânico na fração terra fina, em g/kg;
-#   - `argila`: conteúdo de argila total na fração terra fina, em g/kg;
-#   - `silte`: conteúdo de silte total na fração terra fina, em g/kg;
-#   - `areia`: conteúdo de areia total na fração terra fina, em g/kg;
-#   - `ctc`: capacidade de troca de cátions da fração terra fina, em cmol~c~/kg;
-#   - `ph`: pH em água da fração terra fina, sem unidade de medida;
-#   - `ce`: condutividade elétrica de fração terra fina, em mS/cm;
-#   - `dsi`: densidade do solo inteiro, em kg/dm^3^.
-
-# Acompanham também informações sobre a profundidade (`profund_sup` e `profund_inf`), em cm, data
-# (`observacao_data`) e local (`coord_x` e `coord_y`) de amostragem/observação do solo. O sistema de referência
-# de coordenadas espaciais utilizado é o SIRGAS 2000 (EPSG:4674), com coordenadas espacials expressas em graus
-# decimais.
-
-# Os passos de limpeza dos dados descarregados são descritos abaixo, enquanto que os passos de padronização e
-# harmonização estão descritos na página do pacote `febr` para o R em https://febr-team.github.io/febr-package/.
-
-# Depois de processados, os dados são disponibilizados ao público usando o formato universal CSV no repositório 
-# do ___febr___ no GitHub em https://github.com/febr-team/febr-data/tree/master/data.
-
-## Tabelas _dataset_
-
+## Tabelas identificacao
+identificacao <- febr::identification(dataset = "all", febr.repo = "~/ownCloud/febr-repo/publico")
 dataset <- febr::dataset(dataset = 'all')
 # str(dataset, 1)
 # sapply(dataset, colnames)
