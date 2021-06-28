@@ -40,11 +40,19 @@ identificacao <-
 colnames(identificacao) <- padrao$campo
 identificacao$dados_acesso <- 
   paste0("https://cloud.utfpr.edu.br/index.php/s/Df6dhfzYJ1DDeso?path=%2F", identificacao$dados_id)
+
+# Esconder enderećos de e-mail
+identificacao[["dados_autor"]] <- gsub("@", " em ", identificacao[["dados_autor"]])
+identificacao[["dados_autor"]] <- gsub(".com", " com", identificacao[["dados_autor"]], fixed = TRUE)
+identificacao[["dados_autor"]] <- gsub(" (NA)", "", identificacao[["dados_autor"]], fixed = TRUE)
+identificacao[["dados_autor"]] <- gsub(" (xx)", "", identificacao[["dados_autor"]], fixed = TRUE)
+
 # salvar planilha eletrônica no formato XLSX
 hs <- openxlsx::createStyle(textDecoration = "BOLD", fgFill = "lightgray")
 openxlsx::write.xlsx(
   x = identificacao,
   file = paste0(publico, '/febr-indice.xlsx'),
+  overwrite = TRUE,
   sheetName = 'febr-indice', 
   rowNames = FALSE, 
   headerStyle = hs, 
