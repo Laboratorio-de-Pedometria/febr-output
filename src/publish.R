@@ -18,7 +18,7 @@ publico <- path.expand('~/ownCloud/febr-repo/publico')
 
 # conjunto de dados a ser publicado
 # ctb <- list.dirs(processamento, recursive = FALSE, full.names = FALSE)
-ctb <- "ctb0020"
+ctb <- "ctb0025"
 
 for (i in seq_along(ctb)) {
   # i <- 1
@@ -90,5 +90,5 @@ for (i in seq_along(ctb)) {
   }
 
   # Atualizar catálogo de conjuntos de dados
-  source("code/make-index.R")
+  source("src/make-index.R")
 }
