@@ -46,8 +46,8 @@ library(febr)
 
 ## Tabelas 'identificacao' #########################################################################
 # Campos exportados:
-# * dados_id: código de identificação do conjunto de dados no FEBR
-# * dados_licenca: licença de uso e distribuição do conjunto de dados
+# * dados_id: código de identificação do conjunto de dados de origem
+# * dados_licenca: licença de uso e distribuição do conjunto de dados de origem
 ide <- febr::identification(data.set = "all", febr.repo = "~/ownCloud/febr-repo/publico")
 ide <- lapply(ide, function(x){
   y <- as.list(x[["valor"]])
@@ -65,29 +65,39 @@ write.table(ide[, ide_cols], "tmp/2021-12-identificacao.txt", sep = ";", dec = "
 
 ## Tabelas 'observacao' ############################################################################
 # Campos exportados:
-# 
+# * observacao_id: código de identificação da observação no conjunto de dados de origem
+# * sisb_id: código de identificação da observação no Sistema de Informação de Solos Brasileiros
+# * 
 # Os dados das tabelas observacao de cada conjunto de dados são descarregados utilizando o nível 3
 # de harmonização.
 if (!require(sf)) {
   install.packages(pkgs = "sf")
 }
-
+# Carregar dados
 vars <- c("taxon_", "terra_")
 observacao <- febr::observation(
   data.set = "all",
-  # data.set = "ctb0006",
   variable = vars, 
   stack = TRUE, 
   standardization = list(
-    crs =  "EPSG:4674",
+    crs = "EPSG:4674", # SIRGAS 2000
     # time.format = "%Y-%m-%d",
     # time.format = "%d-%m-%Y",
-    units = FALSE, round = FALSE),
+    units = FALSE, round = FALSE  # somente variáveis categóricas sendo processadas
+  ),
   harmonization = list(harmonize = TRUE, level = 3),
   febr.repo = "~/ownCloud/febr-repo/publico")
+# https://stackoverflow.com/a/43230524/3365410
+# as.Date(42705, origin = "1899-12-30")
 
+idx <- is.na(observacao[, "observacao_data"])
+n <- nchar(observacao[!idx, "observacao_data"]) == 5
 
+paste0(observacao$dataset_id, " ", observacao$observacao_id, " ", observacao$observacao_data)[!idx][n]
 
+observacao[!idx, c(
+  # "dataset_id", "observacao_id",
+  "observacao_data")]
 
 
 
