@@ -67,7 +67,8 @@ write.table(ide[, ide_cols], "tmp/2021-12-identificacao.txt", sep = ";", dec = "
 # Campos exportados:
 # * observacao_id: código de identificação da observação no conjunto de dados de origem
 # * sisb_id: código de identificação da observação no Sistema de Informação de Solos Brasileiros
-# * 
+# * observacao_data: data (ano) em que a observação (amostragem, descrição) do solo foi realizada
+# 
 # Os dados das tabelas observacao de cada conjunto de dados são descarregados utilizando o nível 3
 # de harmonização.
 if (!require(sf)) {
@@ -87,43 +88,88 @@ observacao <- febr::observation(
   ),
   harmonization = list(harmonize = TRUE, level = 3),
   febr.repo = "~/ownCloud/febr-repo/publico")
+# Processar data de observação
+# Apenas o ano é mantido, retornado como inteiro
 # https://stackoverflow.com/a/43230524/3365410
 # as.Date(42705, origin = "1899-12-30")
+observacao[["observacao_data_original"]] <- observacao[["observacao_data"]]
+n <- which(nchar(observacao[["observacao_data_original"]]) == 5)
+observacao[n, "observacao_data"] <-
+  as.character(as.Date(as.integer(observacao[n, "observacao_data_original"]), origin = "1899-12-30"))
+has_bar <-  which(grepl("/", observacao[["observacao_data"]], fixed = TRUE))
+if (any(has_bar)) {
+  observacao[has_bar, "observacao_data"] <- gsub("/", "-", observacao[has_bar, "observacao_data"])
+}
+has_dash <- which(grepl("-", observacao[["observacao_data"]]))
+observacao[["observacao_data_ano"]] <- NA_integer_
+for (i in has_dash) {
+  y <- strsplit(observacao[i, "observacao_data"], "-")[[1]]
+  n <- nchar(y)
+  if (any(n == 4)) {
+    is_year <- which(n == 4)
+    observacao[i, "observacao_data_ano"] <- as.integer(y[is_year])
+  }
+}
+# Processar uso e cobertura da terra
+# * Dados de uso da terra (terra_usoatual), nome da cultura agrícola (terra_cultura) e sistema de
+#   manejo do solo (terra_manejo) são agregados.
+# * Termos em inglês são traduzidos livremente para o português.
+# * Alguma limpeza é realizada, removendo espaços, quebras de linha e pontuação desnecessários. No
+#   caso de ponto final, o mesmo é removido apenas quando a cadeia de caracteres possui comprimento
+#   menor ou igual a 50.
+observacao[, "terra_usoatual_original"] <- observacao[, "terra_usoatual"]
+isna_uso <- is.na(observacao[["terra_usoatual_original"]])
+isna_cultura <- is.na(observacao[["terra_cultura"]])
+isna_manejo <- is.na(observacao[, "terra_manejo"])
+observacao[["terra_usoatual"]] <- paste0(
+  ifelse(isna_uso, "", observacao[["terra_usoatual_original"]]),
+  ifelse(isna_cultura, "", paste0(" ", observacao[["terra_cultura"]])),
+  ifelse(isna_manejo, "", paste0(" ", observacao[["terra_manejo"]]))
+)
+observacao[["terra_usoatual"]] <- gsub("  ", " ", observacao[["terra_usoatual"]])
+observacao[["terra_usoatual"]] <- gsub("&#10;", " ", observacao[["terra_usoatual"]], fixed = TRUE)
+observacao[["terra_usoatual"]] <- gsub("^ ", "", observacao[["terra_usoatual"]])
+observacao[["terra_usoatual"]] <- gsub(" $", "", observacao[["terra_usoatual"]])
+observacao[["terra_usoatual"]] <- gsub(" .", "", observacao[["terra_usoatual"]], fixed = TRUE)
+idx_short <- which(nchar(observacao[["terra_usoatual"]]) <= 50)
+observacao[idx_short, "terra_usoatual"] <- gsub(".", "", observacao[idx_short, "terra_usoatual"], fixed = TRUE)
+observacao[["terra_usoatual"]] <- gsub("shrubland", "capoeira", observacao[["terra_usoatual"]])
+observacao[["terra_usoatual"]] <- gsub("forestry", "silvicultura", observacao[["terra_usoatual"]])
+observacao[["terra_usoatual"]] <- gsub("native forest", "floresta nativa", observacao[["terra_usoatual"]])
+observacao[["terra_usoatual"]] <- gsub("crop agriculture", "cultivo agrícola", observacao[["terra_usoatual"]])
+observacao[["terra_usoatual"]] <- gsub("animal husbandry", "criação animal", observacao[["terra_usoatual"]])
 
-idx <- is.na(observacao[, "observacao_data"])
-n <- nchar(observacao[!idx, "observacao_data"]) == 5
+# Processar classificação taxonômica
+# 
+# Para os três sistemas de classificação taxonômica do solo, o processamento dos dados segue os
+# seguintes passos:
+# 
+# 1. Fusão das colunas com a classificação taxonômica do solo nas diferentes versões de um mesmo
+#    sistema de classificação taxonômica. Prioridade é dada à classificação mais recente. No caso do
+#    Sistema Brasileiro de Classificação do Solo, SiBCS, classificações até 1999 são ignoradas,
+#    pois o número de classes e a nomenclatura utilizada são diferentes da versão atual. Nesse caso,
+#    observações apenas com a classificação taxonômica antiga do SiBCS ficam sem dados
+#    (`NA_character`). Os códigos de identificação das colunas resultantes da fusão das colunas de
+#    cada um dos três sistema de classificação taxonômica são `taxon_sibcs`, `taxon_st` e
+#    `taxon_wrb`.
+# 2. Para `taxon_sibcs`, substituição da classificação taxonômica registrada na forma de sigla pelo
+#    nome correspondente por extenso, seguida da eliminação de níveis categóricos inferiores,
+#    mantendo-se apenas o primeiro (ordem) e o segundo (subordem). O código da planilha do Google
+#    Sheets contendo a tabela de mapeamento entre sigla e nome é
+#    1yJ_XnsJhnhJSfC3WRimfu_3_owXxpfSKaoxCiMD2_Z0.
+# 3. Para `taxon_sibcs`, `taxon_st` e `taxon_wrb`, limpeza e padronização da formatação das
+#    correntes de caracteres que representam cada classificação taxonômica do solo (caixa alta,
+#    sem acentuação, sem ponto final).
 
-paste0(observacao$dataset_id, " ", observacao$observacao_id, " ", observacao$observacao_data)[!idx][n]
-
-observacao[!idx, c(
-  # "dataset_id", "observacao_id",
-  "observacao_data")]
 
 
 
-### Processamento
-
-# Para os três sistemas de classificação taxonômica do solo, o processamento dos dados segue os seguintes passos:
-
-# 1. Fusão das colunas com a classificação taxonômica do solo nas diferentes versões de um mesmo sistema de 
-#    classificação taxonômica. Prioridade é dada à classificação mais recente. No caso do Sistema Brasileiro de
-#    Classificação do Solo, `sibcs`, classificações até 1999 são ignoradas, pois o número de classes e a
-#    nomenclatura utilizada são diferentes da versão atual. Nesse caso, observações apenas com a classificação
-#    taxonômica antiga do `sibcs` ficam sem dados (`NA_character`). Os códigos de identificação das colunas
-#    resultantes da fusão das colunas de cada um dos três sistema de classificação taxonômica são `taxon_sibcs`,
-#    `taxon_st` e `taxon_wrb`.
-# 2. Para `taxon_sibcs`, substituição da classificação taxonômica registrada na forma de sigla pelo nome
-#    correspondente por extenso, seguida da eliminação de níveis categóricos inferiores, mantendo-se apenas o
-#    primeiro (ordem) e o segundo (subordem).
-# 3. Para `taxon_sibcs`, `taxon_st` e `taxon_wrb`, limpeza e padronização da formatação das correntes de
-#    caracteres que representam cada classificação taxonômica do solo (caixa alta, sem acentuação, sem ponto 
-#    final).
 
 # As colunas são organizadas de maneira a:
-
-# 1. Descartar as colunas `taxon_sibcs_<...>`, `taxon_st_<...>` e `taxon_wrb_<...>`, processadas acima e 
-#    substituidas pelas colunas `taxon_sibcs`, `taxon_st` e `taxon_wrb`, respectivamente.
-# 2. Descartar a colunas `coord_sistema`, uma vez que as coordenadas espaciais de todas as observações foram
+# 
+# 1. Descartar as colunas taxon_sibcs_<...>, taxon_st_<...> e taxon_wrb_<...>, processadas acima e 
+#    substituídas pelas colunas taxon_sibcs, taxon_st e taxon_wrb, respectivamente.
+# 2. Descartar a colunas coord_sistema`, uma vez que as coordenadas espaciais de todas as observações foram
 #    padronizadas para o sistema de referência de coordenadas SIRGAS 2000 (EPSG:4674).
 # 3. Posicionar as colunas com dados de identificação -- `observacao_id_`, `sisb_id` e `ibge_id` lado-a-lado.
 
