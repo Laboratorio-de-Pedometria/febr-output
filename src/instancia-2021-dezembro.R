@@ -1,6 +1,98 @@
-# title: "Instância de dezembro de 2021"
-# subtitle: Repositório de dados do solo FEBR
-# author: "Alessandro Samuel-Rosa"
+# title: Instância de dezembro de 2021
+# subtitle: Repositório de Dados do Solo Brasileiro
+# author: Alessandro Samuel-Rosa
+# 
+# Instalar última versão do pacote febr diretamente o GitHub
+if (!require(remotes)) {
+  install.packages(pkgs = "remotes")
+}
+remotes::install_github(repo = "laboratorio-de-pedometria/febr-package")
+library(febr)
+febr_repo <- "~/ownCloud/febr-repo/publico"
+# 
+## 2021-12-fontes.txt ##############################################################################
+# Campos exportados da tabela 'identificacao':
+# * dados_id: código de identificação dos dados no FEBR
+# * dados_licenca: licença de uso e distribuição dos dados definida pelos autores ou organização
+#   responsável
+ide <- febr::identification(data.set = "all", febr.repo = febr_repo)
+ide <- lapply(ide, function(x){
+  y <- as.list(x[["valor"]])
+  names(y) <- x[["campo"]]
+  data.frame(y)
+})
+ide <- do.call(rbind, ide)
+ide[["dados_licenca"]] <- gsub(" 4.0 Atribuição-NãoComercial-CompartilhaIgual", "",
+  ide[["dados_licenca"]])
+ide[["dados_licenca"]] <- gsub(" 4.0 Atribuição-NãoComercial", "", ide[["dados_licenca"]])
+ide[["dados_licenca"]] <- gsub(" 4.0 Atribuição", "", ide[["dados_licenca"]])
+ide_cols <- c("dados_id", "dados_licenca")
+ide <- ide[, ide_cols]
+# Campos exportados da tabela 'versionamento':
+# * dados_versao: número da última versão dos dados no FEBR
+ver <- febr::readFEBR(data.set = "all", data.table = "versionamento")
+latest_version <- character(length(ver))
+for (i in seq_along(ver)) {
+  which_row <- dim(ver[[i]])[1]  
+  latest_version[i] <- ver[[i]][which_row, "dados_versao"][[1]]
+}
+# Escrever table em disco
+ide <- cbind(ide, dados_versao = latest_version)
+write.table(ide, "febr-output/tmp/2021-12-fontes.txt", sep = ";", dec = ",", row.names = FALSE)
+# 
+## 2021-12-eventos.txt #############################################################################
+# Campos exportados da tabela 'observacao':
+eventos_cols <- c(
+  "evento_id_febr", # código de identificação do evento nos dados
+  "evento_id_sisb", # código de identificação do evento no repositório da EMBRAPA (quando existente)
+  "evento_id_ibge", # código de identificação do evento no repositório do IBGE (quando existente)
+  "evento_data_ano" # data (ano) quando o evento foi observado, descrito e amostrado
+)
+# Carregar pacotes necessários
+if (!require(sf)) {
+  install.packages(pkgs = "sf", dependencies = TRUE)
+}
+# Descarregar dados utilizando o nível 3 de harmonização
+vars <- c("sisb_id", "taxon_", "terra_", "fito_")
+observacao <- febr::observation(
+  data.set = "all",
+  variable = vars, 
+  stack = TRUE, 
+  standardization = list(
+    crs = "EPSG:4674", # SIRGAS 2000
+    # time.format = "%Y-%m-%d",
+    # time.format = "%d-%m-%Y",
+    units = FALSE, round = FALSE  # somente variáveis categóricas sendo processadas
+  ),
+  harmonization = list(harmonize = TRUE, level = 3),
+  febr.repo = febr_repo, verbose = FALSE)
+# Processar data do evento, mantendo apenas o ano
+# https://stackoverflow.com/a/43230524/3365410
+# as.Date(42705, origin = "1899-12-30")
+observacao[["evento_data_original"]] <- observacao[["evento_data"]]
+n <- which(nchar(observacao[["evento_data_original"]]) == 5)
+observacao[n, "evento_data"] <-
+  as.character(as.Date(as.integer(observacao[n, "evento_data_original"]), origin = "1899-12-30"))
+has_bar <-  which(grepl("/", observacao[["evento_data"]], fixed = TRUE))
+if (any(has_bar)) {
+  observacao[has_bar, "evento_data"] <- gsub("/", "-", observacao[has_bar, "evento_data"])
+}
+has_dash <- which(grepl("-", observacao[["evento_data"]]))
+observacao[["evento_data_ano"]] <- NA_integer_
+for (i in has_dash) {
+  y <- strsplit(observacao[i, "evento_data"], "-")[[1]]
+  n <- nchar(y)
+  if (any(n == 4)) {
+    is_year <- which(n == 4)
+    observacao[i, "evento_data_ano"] <- as.integer(y[is_year])
+  }
+}
+# Escrever tabela em disco
+file_name <- "febr-output/tmp/2021-12-eventos.txt"
+write.table(observacao[, eventos_cols], file = file_name, sep = ";", dec = ",", row.names = FALSE)
+
+colnames(observacao)
+
 # 
 # Apresentação
 # 
@@ -28,88 +120,23 @@
 # 
 # Dados adicionais:
 # - profundidade superior (profund_sup) e inferior (profund_inf) da camada amostrada, em cm;
-# - data de observação ou amostragem do solo (observacao_data);
+# - data de observação ou amostragem do solo (evento_data);
 # - coordenadas do local de observaćão ou amostragem do solo (coord_x e coord_y), em graus decimais,
 #   usando SIRGAS 2000 (EPSG:4674) como sistema de referência de coordenadas.
 #   
 # Os procedimentos de limpeza dos dados são descritos abaixo. Já os procedimentos de padronização e
 # harmonização são descritos no pacote febr para o R (https://www.pedometria.org/software/febr/).
 
-# Instalar última versão do pacote febr diretamente o GitHub
-if (!require(febr)) {
-  if (!require(remotes)) {
-    install.packages(pkgs = "remotes")
-  }
-  remotes::install_github(repo = "laboratorio-de-pedometria/febr-package")
-}
-library(febr)
 
-## Tabelas 'identificacao' #########################################################################
-# Campos exportados:
-# * dados_id: código de identificação do conjunto de dados de origem
-# * dados_licenca: licença de uso e distribuição do conjunto de dados de origem
-ide <- febr::identification(data.set = "all", febr.repo = "~/ownCloud/febr-repo/publico")
-ide <- lapply(ide, function(x){
-  y <- as.list(x[["valor"]])
-  names(y) <- x[["campo"]]
-  data.frame(y)
-})
-ide <- do.call(rbind, ide)
-ide[["dados_licenca"]] <- gsub(" 4.0 Atribuição-NãoComercial-CompartilhaIgual", "",
-  ide[["dados_licenca"]])
-ide[["dados_licenca"]] <- gsub(" 4.0 Atribuição-NãoComercial", "", ide[["dados_licenca"]])
-ide[["dados_licenca"]] <- gsub(" 4.0 Atribuição", "", ide[["dados_licenca"]])
-ide_cols <- c("dados_id", "dados_licenca")
-write.table(ide[, ide_cols], "tmp/2021-12-identificacao.txt", sep = ";", dec = ",",
-  row.names = FALSE)
 
-## Tabelas 'observacao' ############################################################################
-# Campos exportados:
-# * observacao_id: código de identificação da observação no conjunto de dados de origem
-# * sisb_id: código de identificação da observação no Sistema de Informação de Solos Brasileiros
-# * observacao_data: data (ano) em que a observação (amostragem, descrição) do solo foi realizada
+
+
+## Tabela  ############################################################################
+
 # 
-# Os dados das tabelas observacao de cada conjunto de dados são descarregados utilizando o nível 3
-# de harmonização.
-if (!require(sf)) {
-  install.packages(pkgs = "sf")
-}
-# Carregar dados
-vars <- c("taxon_", "terra_")
-observacao <- febr::observation(
-  data.set = "all",
-  variable = vars, 
-  stack = TRUE, 
-  standardization = list(
-    crs = "EPSG:4674", # SIRGAS 2000
-    # time.format = "%Y-%m-%d",
-    # time.format = "%d-%m-%Y",
-    units = FALSE, round = FALSE  # somente variáveis categóricas sendo processadas
-  ),
-  harmonization = list(harmonize = TRUE, level = 3),
-  febr.repo = "~/ownCloud/febr-repo/publico")
-# Processar data de observação
-# Apenas o ano é mantido, retornado como inteiro
-# https://stackoverflow.com/a/43230524/3365410
-# as.Date(42705, origin = "1899-12-30")
-observacao[["observacao_data_original"]] <- observacao[["observacao_data"]]
-n <- which(nchar(observacao[["observacao_data_original"]]) == 5)
-observacao[n, "observacao_data"] <-
-  as.character(as.Date(as.integer(observacao[n, "observacao_data_original"]), origin = "1899-12-30"))
-has_bar <-  which(grepl("/", observacao[["observacao_data"]], fixed = TRUE))
-if (any(has_bar)) {
-  observacao[has_bar, "observacao_data"] <- gsub("/", "-", observacao[has_bar, "observacao_data"])
-}
-has_dash <- which(grepl("-", observacao[["observacao_data"]]))
-observacao[["observacao_data_ano"]] <- NA_integer_
-for (i in has_dash) {
-  y <- strsplit(observacao[i, "observacao_data"], "-")[[1]]
-  n <- nchar(y)
-  if (any(n == 4)) {
-    is_year <- which(n == 4)
-    observacao[i, "observacao_data_ano"] <- as.integer(y[is_year])
-  }
-}
+
+
+
 # Processar uso e cobertura da terra
 # * Dados de uso da terra (terra_usoatual), nome da cultura agrícola (terra_cultura) e sistema de
 #   manejo do solo (terra_manejo) são agregados.
@@ -139,30 +166,61 @@ observacao[["terra_usoatual"]] <- gsub("native forest", "floresta nativa", obser
 observacao[["terra_usoatual"]] <- gsub("crop agriculture", "cultivo agrícola", observacao[["terra_usoatual"]])
 observacao[["terra_usoatual"]] <- gsub("animal husbandry", "criação animal", observacao[["terra_usoatual"]])
 
+####################################################################################################
 # Processar classificação taxonômica
-# 
-# Para os três sistemas de classificação taxonômica do solo, o processamento dos dados segue os
-# seguintes passos:
-# 
-# 1. Fusão das colunas com a classificação taxonômica do solo nas diferentes versões de um mesmo
-#    sistema de classificação taxonômica. Prioridade é dada à classificação mais recente. No caso do
-#    Sistema Brasileiro de Classificação do Solo, SiBCS, classificações até 1999 são ignoradas,
-#    pois o número de classes e a nomenclatura utilizada são diferentes da versão atual. Nesse caso,
-#    observações apenas com a classificação taxonômica antiga do SiBCS ficam sem dados
-#    (`NA_character`). Os códigos de identificação das colunas resultantes da fusão das colunas de
-#    cada um dos três sistema de classificação taxonômica são `taxon_sibcs`, `taxon_st` e
-#    `taxon_wrb`.
-# 2. Para `taxon_sibcs`, substituição da classificação taxonômica registrada na forma de sigla pelo
-#    nome correspondente por extenso, seguida da eliminação de níveis categóricos inferiores,
-#    mantendo-se apenas o primeiro (ordem) e o segundo (subordem). O código da planilha do Google
-#    Sheets contendo a tabela de mapeamento entre sigla e nome é
-#    1yJ_XnsJhnhJSfC3WRimfu_3_owXxpfSKaoxCiMD2_Z0.
-# 3. Para `taxon_sibcs`, `taxon_st` e `taxon_wrb`, limpeza e padronização da formatação das
-#    correntes de caracteres que representam cada classificação taxonômica do solo (caixa alta,
-#    sem acentuação, sem ponto final).
+# 1. Fusão das colunas com a classificação taxonômica do solo nas diferentes versões do SiBCS.
+# Prioridade é dada à classificação mais recente. Classificações até 1999 são ignoradas,
+# pois o número de classes e a nomenclatura utilizada são diferentes da versão atual. Nesse caso,
+# observações apenas com a classificação taxonômica antiga do SiBCS ficam sem dados
+# (`NA_character`). O código de identificação da coluna resultante da fusão das colunas de
+# cada uma das versões do SiBCS é `taxon_sibcs`.
+# O processo de fusão dos dados é realizado usando procedimento conhecido como coalescer:
+# * https://dplyr.tidyverse.org/reference/coalesce.html
+# * https://www.w3schools.com/SQL/func_sqlserver_coalesce.asp
+obs_cols <- colnames(observacao)
+
+# taxon_cols <- grepl("^taxon_sibcs_(.)", obs_cols)
+# taxon_cols <- sort(obs_cols[taxon_cols], decreasing = TRUE)
+# idx <- is.na(observacao[["taxon_sibcs_20xx"]])
+# idx <- which(!idx)
+# unique(observacao[idx, "dataset_id"])
 
 
-
+taxon_cols <- grepl("^taxon_sibcs_20(.)|^taxon_sibcs_1999", obs_cols)
+taxon_cols <- sort(obs_cols[taxon_cols], decreasing = TRUE)
+observacao[, "taxon_sibcs"] <- NA_character_
+has_taxon <- which(rowSums(is.na(observacao[, taxon_cols])) < length(taxon_cols))
+for (i in has_taxon) {
+  idx_not_na <- which(!is.na(observacao[i, taxon_cols]))[1] # reter o primeiro
+  observacao[i, "taxon_sibcs"] <- observacao[i, taxon_cols][idx_not_na]
+}
+# 2. Substituição da classificação taxonômica registrada na forma de sigla pelo nome correspondente
+# por extenso. O código da planilha do Google Sheets contendo a tabela de mapeamento entre sigla e
+# nome é 1yJ_XnsJhnhJSfC3WRimfu_3_owXxpfSKaoxCiMD2_Z0.
+# Inicia-se identificando quais eventos possuem a classificação taxonômica na forma curta, ou seja,
+# na forma curta. Isso é feito avaliando o comprimento das cadeias de caracteres.
+# O mapeamento é feito após identificação da correspondência entre os dados e o vocabulário
+# controlado usando match().
+# No futuro, é recomendado que o mapeamento seja realizado para cada versão do SiBCS, antes da fusão
+# dos dados realizada no passo anterior. Esse procedimento deve ser implementado na função
+# febr::taxonomy().
+sibcs_tabela <- febr::readVocabulary()
+idx_taxon_sibcs <- grepl("^taxon_sibcs_20(.)", sibcs_tabela[["campo_id"]])
+idx_taxon_sibcs <- which(idx_taxon_sibcs)
+acronym_length <- nchar(sibcs_tabela[["campo_valorcurto"]][idx_taxon_sibcs])
+acronym_length <- max(acronym_length)
+idx_acronym <- nchar(observacao[["taxon_sibcs"]])
+idx_acronym <- which(idx_acronym <= acronym_length)
+idx_match <- match(x = observacao[["taxon_sibcs"]][idx_acronym],
+  table = sibcs_tabela[["campo_valorcurto"]][idx_taxon_sibcs])
+observacao[["taxon_sibcs"]][idx_acronym] <- sibcs_tabela[["campo_valorlongo"]][idx_match]
+# 3. O terceiro passo consiste na eliminação de níveis categóricos inferiores, mantendo-se apenas o
+# primeiro (ordem). O processamento é realizado usando a função febr::taxonomy(), que retorna os
+# termos todos em caixa alta (primeiro nível categórico).
+has_taxon <- is.na(observacao[["taxon_sibcs"]])
+has_taxon <- which(!has_taxon)
+observacao[has_taxon, "taxon_sibcs"] <-
+  febr::taxonomy(observacao[has_taxon, "taxon_sibcs"])[, "ordem"]
 
 
 # As colunas são organizadas de maneira a:
@@ -177,26 +235,12 @@ observacao[["terra_usoatual"]] <- gsub("animal husbandry", "criação animal", o
 
 # 1. Os dados da coluna `coord_precisao` são definidos como do tipo real usando `as.numeric()`.
 
-sibcs_tabela <- 
-  "1yJ_XnsJhnhJSfC3WRimfu_3_owXxpfSKaoxCiMD2_Z0" %>% 
-  googlesheets::gs_key() %>% 
-  googlesheets::gs_read_csv()
-sibcs_siglas <- sibcs_tabela$campo_codigo
-sibcs_tabela <- as.list(sibcs_tabela$campo_nome)
-names(sibcs_tabela) <- sibcs_siglas
-pruneStrings <- 
-  function (x, n, split = " ", collapse = " ") {
-    res <- 
-      sapply(x, function (x) {
-        res <- strsplit(x = x, split = split)[[1]][1:n]
-        res <- paste(res, collapse = collapse)
-        res <- as.character(res)
-        res <- gsub(pattern = "NA NA", replacement = NA_character_, x = res)
-        res <- gsub(pattern = " NA$", "", res)
-        return (res)
-      })
-    return (res)
-  }
+# Reter classificação taxonômica mais atual
+
+
+
+
+
 observacao <- 
   observacao %>% 
   dplyr::mutate(
@@ -224,16 +268,11 @@ observacao <-
     municipio_id = gsub(pattern = ".", "", .data$municipio_id, fixed = TRUE)
   ) %>% 
   dplyr::select(
-    dataset_id, observacao_id, sisb_id, ibge_id, observacao_data, coord_x, coord_y, coord_precisao, 
+    dataset_id, observacao_id, sisb_id, ibge_id, evento_data, coord_x, coord_y, coord_precisao, 
     coord_fonte, pais_id, estado_id, municipio_id, amostra_tipo, amostra_quanti, amostra_area, taxon_sibcs, 
     taxon_st, taxon_wrb)
 
-mess <- 
-  function (x) {
-    n <- nrow(x)
-    x[sample(x = seq(n), size = n), ]
-  }
-mess(observacao)
+
 
 ### Análise exploratória
 
@@ -393,14 +432,14 @@ title(
 dev.off()
 
 observacao %>% 
-  dplyr::mutate(observacao_data = as.Date(observacao_data) %>% format("%Y")) %>% 
+  dplyr::mutate(evento_data = as.Date(evento_data) %>% format("%Y")) %>% 
   dplyr::summarise(
     Total = dplyr::n(),
-    Data = sum(!is.na(observacao_data)),
-    `<1960` = sum(observacao_data < 1960, na.rm = TRUE),
-    `1960-1990` = (sum(observacao_data < 1990, na.rm = TRUE) - `<1960`),
-    `1990-2010` = (sum(observacao_data < 2010, na.rm = TRUE) - `<1960` - `1960-1990`),
-    `2010-2019` = (sum(observacao_data < 2019, na.rm = TRUE) - `<1960` - `1960-1990` - `1990-2010`)
+    Data = sum(!is.na(evento_data)),
+    `<1960` = sum(evento_data < 1960, na.rm = TRUE),
+    `1960-1990` = (sum(evento_data < 1990, na.rm = TRUE) - `<1960`),
+    `1990-2010` = (sum(evento_data < 2010, na.rm = TRUE) - `<1960` - `1960-1990`),
+    `2010-2019` = (sum(evento_data < 2019, na.rm = TRUE) - `<1960` - `1960-1990` - `1990-2010`)
     ) %>% 
   dplyr::mutate(
     `<1960` = round(`<1960` / Data * 100, 2),
@@ -421,7 +460,7 @@ observacao %>%
 # Brasil. Contudo, como parte considerável das observações do solo não possui informação sobre a data de 
 # observação, não é possível identificar a razão do vazio com precisão.
 
-observacao[!is.na(observacao$coord_x), c("coord_x", "coord_y", "observacao_data")] %>% 
+observacao[!is.na(observacao$coord_x), c("coord_x", "coord_y", "evento_data")] %>% 
   duplicated() %>% 
   sum()
 
@@ -431,10 +470,10 @@ png("../res/fig/febr-observacao-tempo.png", width = 480 * 2, height = 480 * 2, r
 par(oma = c(0, 0, 0, 0), las = 1, mar = c(4, 4, 2, 1))
 tmp <- 
   observacao %>% 
-  select(observacao_data) %>% 
+  select(evento_data) %>% 
   mutate(
-    observacao_data = as.Date(observacao_data),
-    observacao_data = format(observacao_data, "%Y")) %>% 
+    evento_data = as.Date(evento_data),
+    evento_data = format(evento_data, "%Y")) %>% 
   table()
 barplot(tmp, col = "lightgray", border = "lightgray")
 # barplot(tmp, col = "firebrick1", border = "firebrick1")
@@ -453,10 +492,10 @@ tmp %>%
 # observacao %>%
 #   # filter(estado_id == "GO") %>%
 #   filter(estado_id == "SP") %>%
-#   select(observacao_data) %>%
+#   select(evento_data) %>%
 #   mutate(
-#     observacao_data = as.Date(observacao_data),
-#     observacao_data = format(observacao_data, "%Y")) %>%
+#     evento_data = as.Date(evento_data),
+#     evento_data = format(evento_data, "%Y")) %>%
 #   table()
 # id <- which(names(tmp) %in% names(tmp2))
 # tmp[id] <- tmp2
@@ -475,7 +514,7 @@ png("../res/fig/febr-observacao-sem-data.png", width = 480 * 2, height = 480 * 2
 layout(matrix(1:2, nrow = 1), widths = c(2, 2), heights = 1, respect = FALSE)
 par(oma = c(0, 0, 1, 0), las = 1, mar = c(4, 4, 1, 1))
 observacao %>% 
-  dplyr::filter(is.na(observacao_data)) %>% 
+  dplyr::filter(is.na(evento_data)) %>% 
   dplyr::select(estado_id) %>% 
   dplyr::mutate(estado_id = as.factor(estado_id)) %>% 
   table() %>% 
@@ -491,7 +530,7 @@ observacao %>%
     horiz = TRUE)
 grid()
 observacao %>% 
-  dplyr::filter(is.na(observacao_data)) %>% 
+  dplyr::filter(is.na(evento_data)) %>% 
   dplyr::select(dataset_id) %>% 
   dplyr::mutate(dataset_id = as.factor(dataset_id)) %>% 
   table() %>% 
