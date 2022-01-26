@@ -15,7 +15,7 @@ febr_repo <- "~/ownCloud/febr-repo/publico"
 # * dados_id: código de identificação dos dados no FEBR
 # * dados_licenca: licença de uso e distribuição dos dados definida pelos autores ou organização
 #   responsável
-ide <- febr::identification(data.set = "all", febr.repo = febr_repo)
+ide <- febr::identification(data.set = "all", febr.repo = febr_repo, verbose = FALSE)
 ide <- lapply(ide, function(x){
   y <- as.list(x[["valor"]])
   names(y) <- x[["campo"]]
@@ -30,7 +30,7 @@ ide_cols <- c("dados_id", "dados_licenca")
 ide <- ide[, ide_cols]
 # Campos exportados da tabela 'versionamento':
 # * dados_versao: número da última versão dos dados no FEBR
-ver <- febr::readFEBR(data.set = "all", data.table = "versionamento")
+ver <- febr::readFEBR(data.set = "all", data.table = "versionamento", verbose = FALSE)
 latest_version <- character(length(ver))
 for (i in seq_along(ver)) {
   which_row <- dim(ver[[i]])[1]  
@@ -43,17 +43,28 @@ write.table(ide, "febr-output/tmp/2021-12-fontes.txt", sep = ";", dec = ",", row
 ## 2021-12-eventos.txt #############################################################################
 # Campos exportados da tabela 'observacao':
 eventos_cols <- c(
-  "evento_id_febr", # código de identificação do evento nos dados
-  "evento_id_sisb", # código de identificação do evento no repositório da EMBRAPA (quando existente)
-  "evento_id_ibge", # código de identificação do evento no repositório do IBGE (quando existente)
-  "evento_data_ano" # data (ano) quando o evento foi observado, descrito e amostrado
+  "evento_id_febr",
+  "evento_id_sisb",
+  "evento_id_ibge",
+  "data_coleta_ano",
+  "coord_longitude",
+  "coord_latitude",
+  "coord_precisao",
+  "coord_fonte",
+  "estado_sigla",
+  "municipio_nome",
+  "subamostra_quanti",
+  "amostra_area",
+  "taxon_sibcs_20xx",
+  "terra_uso_descricao",
+  "sitio_descricao"
 )
 # Carregar pacotes necessários
 if (!require(sf)) {
   install.packages(pkgs = "sf", dependencies = TRUE)
 }
 # Descarregar dados utilizando o nível 3 de harmonização
-vars <- c("sisb_id", "taxon_", "terra_", "fito_")
+vars <- c("evento_id", "sitio_descricao", "taxon_", "terra_", "fito_")
 observacao <- febr::observation(
   data.set = "all",
   variable = vars, 
@@ -65,34 +76,106 @@ observacao <- febr::observation(
     units = FALSE, round = FALSE  # somente variáveis categóricas sendo processadas
   ),
   harmonization = list(harmonize = TRUE, level = 3),
-  febr.repo = febr_repo, verbose = FALSE)
+  febr.repo = febr_repo,
+  verbose = FALSE)
 # Processar data do evento, mantendo apenas o ano
 # https://stackoverflow.com/a/43230524/3365410
 # as.Date(42705, origin = "1899-12-30")
-observacao[["evento_data_original"]] <- observacao[["evento_data"]]
-n <- which(nchar(observacao[["evento_data_original"]]) == 5)
-observacao[n, "evento_data"] <-
-  as.character(as.Date(as.integer(observacao[n, "evento_data_original"]), origin = "1899-12-30"))
-has_bar <-  which(grepl("/", observacao[["evento_data"]], fixed = TRUE))
+observacao[["data_coleta_original"]] <- observacao[["data_coleta"]]
+n <- which(nchar(observacao[["data_coleta_original"]]) == 5)
+observacao[n, "data_coleta"] <-
+  as.character(as.Date(as.integer(observacao[n, "data_coleta_original"]), origin = "1899-12-30"))
+has_bar <-  which(grepl("/", observacao[["data_coleta"]], fixed = TRUE))
 if (any(has_bar)) {
-  observacao[has_bar, "evento_data"] <- gsub("/", "-", observacao[has_bar, "evento_data"])
+  observacao[has_bar, "data_coleta"] <- gsub("/", "-", observacao[has_bar, "data_coleta"])
 }
-has_dash <- which(grepl("-", observacao[["evento_data"]]))
-observacao[["evento_data_ano"]] <- NA_integer_
+has_dash <- which(grepl("-", observacao[["data_coleta"]]))
+observacao[["data_coleta_ano"]] <- NA_integer_
 for (i in has_dash) {
-  y <- strsplit(observacao[i, "evento_data"], "-")[[1]]
+  y <- strsplit(observacao[i, "data_coleta"], "-")[[1]]
   n <- nchar(y)
   if (any(n == 4)) {
     is_year <- which(n == 4)
-    observacao[i, "evento_data_ano"] <- as.integer(y[is_year])
+    observacao[i, "data_coleta_ano"] <- as.integer(y[is_year])
   }
 }
+# Processar classificação taxonômica
+# 1. Fusão das colunas com a classificação taxonômica do solo nas diferentes versões do SiBCS.
+# Prioridade é dada à classificação mais recente. Classificações até 1999 são ignoradas,
+# pois o número de classes e a nomenclatura utilizada são diferentes da versão atual. Nesse caso,
+# observações apenas com a classificação taxonômica antiga do SiBCS ficam sem dados
+# (`NA_character`). O código de identificação da coluna resultante da fusão das colunas de
+# cada uma das versões do SiBCS é `taxon_sibcs`.
+# O processo de fusão dos dados é realizado usando procedimento conhecido como coalescer:
+# * https://dplyr.tidyverse.org/reference/coalesce.html
+# * https://www.w3schools.com/SQL/func_sqlserver_coalesce.asp
+obs_cols <- colnames(observacao)
+taxon_cols <- grepl("^taxon_sibcs_20(.)|^taxon_sibcs_1999", obs_cols)
+taxon_cols <- sort(obs_cols[taxon_cols], decreasing = TRUE)
+observacao[, "taxon_sibcs_20xx"] <- NA_character_
+has_taxon <- which(rowSums(is.na(observacao[, taxon_cols])) < length(taxon_cols))
+for (i in has_taxon) {
+  idx_not_na <- which(!is.na(observacao[i, taxon_cols]))[1] # reter o primeiro
+  observacao[i, "taxon_sibcs_20xx"] <- observacao[i, taxon_cols][idx_not_na]
+}
+# 2. Substituição da classificação taxonômica registrada na forma de sigla pelo nome correspondente
+# por extenso. O código da planilha do Google Sheets contendo a tabela de mapeamento entre sigla e
+# nome é 1yJ_XnsJhnhJSfC3WRimfu_3_owXxpfSKaoxCiMD2_Z0.
+# Inicia-se identificando quais eventos possuem a classificação taxonômica na forma curta, ou seja,
+# na forma curta. Isso é feito avaliando o comprimento das cadeias de caracteres.
+# O mapeamento é feito após identificação da correspondência entre os dados e o vocabulário
+# controlado usando match().
+# No futuro, é recomendado que o mapeamento seja realizado para cada versão do SiBCS, antes da fusão
+# dos dados realizada no passo anterior. Esse procedimento deve ser implementado na função
+# febr::taxonomy().
+sibcs_tabela <- febr::readVocabulary()
+idx_taxon_sibcs <- grepl("^taxon_sibcs_20(.)", sibcs_tabela[["campo_id"]])
+idx_taxon_sibcs <- which(idx_taxon_sibcs)
+acronym_length <- nchar(sibcs_tabela[["campo_valorcurto"]][idx_taxon_sibcs])
+acronym_length <- max(acronym_length)
+idx_acronym <- nchar(observacao[["taxon_sibcs_20xx"]])
+idx_acronym <- which(idx_acronym <= acronym_length)
+idx_match <- match(x = observacao[["taxon_sibcs_20xx"]][idx_acronym],
+  table = sibcs_tabela[["campo_valorcurto"]][idx_taxon_sibcs])
+observacao[["taxon_sibcs_20xx"]][idx_acronym] <- sibcs_tabela[["campo_valorlongo"]][idx_match]
+# 3. O terceiro passo consiste na eliminação de níveis categóricos inferiores, mantendo-se apenas o
+# primeiro (ordem). O processamento é realizado usando a função febr::taxonomy(), que retorna os
+# termos todos em caixa alta (primeiro nível categórico).
+has_taxon <- is.na(observacao[["taxon_sibcs_20xx"]])
+has_taxon <- which(!has_taxon)
+observacao[has_taxon, "taxon_sibcs_20xx"] <-
+  febr::taxonomy(observacao[has_taxon, "taxon_sibcs_20xx"])[, "ordem"]
+# Processar uso da terra
+# * Dados de uso da terra (terra_usoatual), nome da cultura agrícola (terra_cultura) e sistema de
+#   manejo do solo (terra_manejo) são agregados.
+# * Termos em inglês são traduzidos livremente para o português.
+# * Alguma limpeza é realizada, removendo espaços, quebras de linha e pontuação desnecessários. No
+#   caso de ponto final, o mesmo é removido apenas quando a cadeia de caracteres possui comprimento
+#   menor ou igual a 50.
+observacao[, "terra_uso_original"] <- observacao[, "terra_uso_descricao"]
+isna_uso <- is.na(observacao[["terra_uso_original"]])
+isna_cultura <- is.na(observacao[["terra_cultura"]])
+isna_manejo <- is.na(observacao[, "terra_manejo"])
+observacao[["terra_uso_descricao"]] <- paste0(
+  ifelse(isna_uso, "", observacao[["terra_uso_original"]]),
+  ifelse(isna_cultura, "", paste0(" ", observacao[["terra_cultura"]])),
+  ifelse(isna_manejo, "", paste0(" ", observacao[["terra_manejo"]]))
+)
+observacao[["terra_uso_descricao"]] <- gsub("  ", " ", observacao[["terra_uso_descricao"]])
+observacao[["terra_uso_descricao"]] <- gsub("&#10;", " ", observacao[["terra_uso_descricao"]], fixed = TRUE)
+observacao[["terra_uso_descricao"]] <- gsub("^ ", "", observacao[["terra_uso_descricao"]])
+observacao[["terra_uso_descricao"]] <- gsub(" $", "", observacao[["terra_uso_descricao"]])
+observacao[["terra_uso_descricao"]] <- gsub(" .", "", observacao[["terra_uso_descricao"]], fixed = TRUE)
+idx_short <- which(nchar(observacao[["terra_uso_descricao"]]) <= 50)
+observacao[idx_short, "terra_uso_descricao"] <- gsub(".", "", observacao[idx_short, "terra_uso_descricao"], fixed = TRUE)
+observacao[["terra_uso_descricao"]] <- gsub("shrubland", "capoeira", observacao[["terra_uso_descricao"]])
+observacao[["terra_uso_descricao"]] <- gsub("forestry", "silvicultura", observacao[["terra_uso_descricao"]])
+observacao[["terra_uso_descricao"]] <- gsub("native forest", "floresta nativa", observacao[["terra_uso_descricao"]])
+observacao[["terra_uso_descricao"]] <- gsub("crop agriculture", "cultivo agrícola", observacao[["terra_uso_descricao"]])
+observacao[["terra_uso_descricao"]] <- gsub("animal husbandry", "criação animal", observacao[["terra_uso_descricao"]])
 # Escrever tabela em disco
 file_name <- "febr-output/tmp/2021-12-eventos.txt"
 write.table(observacao[, eventos_cols], file = file_name, sep = ";", dec = ",", row.names = FALSE)
-
-colnames(observacao)
-
 # 
 # Apresentação
 # 
@@ -120,7 +203,7 @@ colnames(observacao)
 # 
 # Dados adicionais:
 # - profundidade superior (profund_sup) e inferior (profund_inf) da camada amostrada, em cm;
-# - data de observação ou amostragem do solo (evento_data);
+# - data de observação ou amostragem do solo (data_coleta);
 # - coordenadas do local de observaćão ou amostragem do solo (coord_x e coord_y), em graus decimais,
 #   usando SIRGAS 2000 (EPSG:4674) como sistema de referência de coordenadas.
 #   
@@ -137,90 +220,10 @@ colnames(observacao)
 
 
 
-# Processar uso e cobertura da terra
-# * Dados de uso da terra (terra_usoatual), nome da cultura agrícola (terra_cultura) e sistema de
-#   manejo do solo (terra_manejo) são agregados.
-# * Termos em inglês são traduzidos livremente para o português.
-# * Alguma limpeza é realizada, removendo espaços, quebras de linha e pontuação desnecessários. No
-#   caso de ponto final, o mesmo é removido apenas quando a cadeia de caracteres possui comprimento
-#   menor ou igual a 50.
-observacao[, "terra_usoatual_original"] <- observacao[, "terra_usoatual"]
-isna_uso <- is.na(observacao[["terra_usoatual_original"]])
-isna_cultura <- is.na(observacao[["terra_cultura"]])
-isna_manejo <- is.na(observacao[, "terra_manejo"])
-observacao[["terra_usoatual"]] <- paste0(
-  ifelse(isna_uso, "", observacao[["terra_usoatual_original"]]),
-  ifelse(isna_cultura, "", paste0(" ", observacao[["terra_cultura"]])),
-  ifelse(isna_manejo, "", paste0(" ", observacao[["terra_manejo"]]))
-)
-observacao[["terra_usoatual"]] <- gsub("  ", " ", observacao[["terra_usoatual"]])
-observacao[["terra_usoatual"]] <- gsub("&#10;", " ", observacao[["terra_usoatual"]], fixed = TRUE)
-observacao[["terra_usoatual"]] <- gsub("^ ", "", observacao[["terra_usoatual"]])
-observacao[["terra_usoatual"]] <- gsub(" $", "", observacao[["terra_usoatual"]])
-observacao[["terra_usoatual"]] <- gsub(" .", "", observacao[["terra_usoatual"]], fixed = TRUE)
-idx_short <- which(nchar(observacao[["terra_usoatual"]]) <= 50)
-observacao[idx_short, "terra_usoatual"] <- gsub(".", "", observacao[idx_short, "terra_usoatual"], fixed = TRUE)
-observacao[["terra_usoatual"]] <- gsub("shrubland", "capoeira", observacao[["terra_usoatual"]])
-observacao[["terra_usoatual"]] <- gsub("forestry", "silvicultura", observacao[["terra_usoatual"]])
-observacao[["terra_usoatual"]] <- gsub("native forest", "floresta nativa", observacao[["terra_usoatual"]])
-observacao[["terra_usoatual"]] <- gsub("crop agriculture", "cultivo agrícola", observacao[["terra_usoatual"]])
-observacao[["terra_usoatual"]] <- gsub("animal husbandry", "criação animal", observacao[["terra_usoatual"]])
+
 
 ####################################################################################################
-# Processar classificação taxonômica
-# 1. Fusão das colunas com a classificação taxonômica do solo nas diferentes versões do SiBCS.
-# Prioridade é dada à classificação mais recente. Classificações até 1999 são ignoradas,
-# pois o número de classes e a nomenclatura utilizada são diferentes da versão atual. Nesse caso,
-# observações apenas com a classificação taxonômica antiga do SiBCS ficam sem dados
-# (`NA_character`). O código de identificação da coluna resultante da fusão das colunas de
-# cada uma das versões do SiBCS é `taxon_sibcs`.
-# O processo de fusão dos dados é realizado usando procedimento conhecido como coalescer:
-# * https://dplyr.tidyverse.org/reference/coalesce.html
-# * https://www.w3schools.com/SQL/func_sqlserver_coalesce.asp
-obs_cols <- colnames(observacao)
 
-# taxon_cols <- grepl("^taxon_sibcs_(.)", obs_cols)
-# taxon_cols <- sort(obs_cols[taxon_cols], decreasing = TRUE)
-# idx <- is.na(observacao[["taxon_sibcs_20xx"]])
-# idx <- which(!idx)
-# unique(observacao[idx, "dataset_id"])
-
-
-taxon_cols <- grepl("^taxon_sibcs_20(.)|^taxon_sibcs_1999", obs_cols)
-taxon_cols <- sort(obs_cols[taxon_cols], decreasing = TRUE)
-observacao[, "taxon_sibcs"] <- NA_character_
-has_taxon <- which(rowSums(is.na(observacao[, taxon_cols])) < length(taxon_cols))
-for (i in has_taxon) {
-  idx_not_na <- which(!is.na(observacao[i, taxon_cols]))[1] # reter o primeiro
-  observacao[i, "taxon_sibcs"] <- observacao[i, taxon_cols][idx_not_na]
-}
-# 2. Substituição da classificação taxonômica registrada na forma de sigla pelo nome correspondente
-# por extenso. O código da planilha do Google Sheets contendo a tabela de mapeamento entre sigla e
-# nome é 1yJ_XnsJhnhJSfC3WRimfu_3_owXxpfSKaoxCiMD2_Z0.
-# Inicia-se identificando quais eventos possuem a classificação taxonômica na forma curta, ou seja,
-# na forma curta. Isso é feito avaliando o comprimento das cadeias de caracteres.
-# O mapeamento é feito após identificação da correspondência entre os dados e o vocabulário
-# controlado usando match().
-# No futuro, é recomendado que o mapeamento seja realizado para cada versão do SiBCS, antes da fusão
-# dos dados realizada no passo anterior. Esse procedimento deve ser implementado na função
-# febr::taxonomy().
-sibcs_tabela <- febr::readVocabulary()
-idx_taxon_sibcs <- grepl("^taxon_sibcs_20(.)", sibcs_tabela[["campo_id"]])
-idx_taxon_sibcs <- which(idx_taxon_sibcs)
-acronym_length <- nchar(sibcs_tabela[["campo_valorcurto"]][idx_taxon_sibcs])
-acronym_length <- max(acronym_length)
-idx_acronym <- nchar(observacao[["taxon_sibcs"]])
-idx_acronym <- which(idx_acronym <= acronym_length)
-idx_match <- match(x = observacao[["taxon_sibcs"]][idx_acronym],
-  table = sibcs_tabela[["campo_valorcurto"]][idx_taxon_sibcs])
-observacao[["taxon_sibcs"]][idx_acronym] <- sibcs_tabela[["campo_valorlongo"]][idx_match]
-# 3. O terceiro passo consiste na eliminação de níveis categóricos inferiores, mantendo-se apenas o
-# primeiro (ordem). O processamento é realizado usando a função febr::taxonomy(), que retorna os
-# termos todos em caixa alta (primeiro nível categórico).
-has_taxon <- is.na(observacao[["taxon_sibcs"]])
-has_taxon <- which(!has_taxon)
-observacao[has_taxon, "taxon_sibcs"] <-
-  febr::taxonomy(observacao[has_taxon, "taxon_sibcs"])[, "ordem"]
 
 
 # As colunas são organizadas de maneira a:
