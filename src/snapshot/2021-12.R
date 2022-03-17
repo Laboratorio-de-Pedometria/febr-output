@@ -1,7 +1,13 @@
 # title: Instância de dezembro de 2021
 # subtitle: Repositório de Dados do Solo Brasileiro
 # author: Alessandro Samuel-Rosa
-# 
+# post: https://docs.google.com/document/d/1kwUGbrxwkzKRCARotDWyMm2YpDNfhz7PhvmUVohfjTw
+source("febr-output/src/snapshot/2021-12-fontes.R")
+rm(list = ls())
+source("febr-output/src/snapshot/2021-12-eventos.R")
+rm(list = ls())
+source("febr-output/src/snapshot/2021-12-camadas.R")
+
 # Instalar última versão do pacote febr diretamente o GitHub
 if (!require(remotes)) {
   install.packages(pkgs = "remotes")

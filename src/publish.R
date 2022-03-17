@@ -15,10 +15,10 @@ rm(list = ls())
 # caminhos dos diretórios de dados
 processamento <- path.expand('~/ownCloud/febr-repo/processamento')
 publico <- path.expand('~/ownCloud/febr-repo/publico')
-
+#
 # identificação dos dados a serem publicados
 # ctb <- list.dirs(processamento, recursive = FALSE, full.names = FALSE)
-ctb <- "ctb0025"
+ctb <- "ctb0768"
 
 for (i in seq_along(ctb)) {
   # i <- 1
@@ -86,5 +86,5 @@ for (i in seq_along(ctb)) {
     system(cmd)
   }
   # Atualizar catálogo de conjuntos de dados
-  source("src/make-index.R")
+  source("febr-output/src/make-index.R")
 }
