@@ -1,17 +1,23 @@
-# title: Instantâneo de dezembro de 2021
+# title: Instantâneo de Junho de 2022 - camadas
 # subtitle: Repositório de Dados do Solo Brasileiro
 # author: Alessandro Samuel-Rosa
-#
+# 
+# Documentos importantes:
+# - FEBR Dicionário de Dados v2: https://goo.gl/hi77sB
+# 
 # Instalar última versão do pacote febr diretamente o GitHub
 if (!require(remotes)) {
   install.packages(pkgs = "remotes")
 }
 remotes::install_github(repo = "laboratorio-de-pedometria/febr-package")
+library(febr)
 febr_repo <- "~/ownCloud/febr-repo/publico"
 #
-## 2021-12-camadas.txt ##############################################################################
+## 2022-06-camadas.txt #############################################################################
+snapshot <- "2022-06"
 # Campos exportados da tabela 'camada':
 camada_cols <- c(
+  "dados_id",
   "evento_id_febr",
   "camada_id_febr"
 )
@@ -25,7 +31,7 @@ vars <- c("argila", "silte", "areia")
   # "camada_nome")
 camada <- febr::layer(
   data.set = "all",
-  # data.set = "ctb0804",
+  # data.set = "ctb0768",
   variable = vars,
   # variable = "argila",
   stack = TRUE,
@@ -35,7 +41,6 @@ camada <- febr::layer(
     plus.sign = "add",
     plus.depth = 20,
     lessthan.sign = "remove",
-    # lessthan.frac = 0.5,
     repetition = "combine",
     combine.fun = "mean",
     transition = "smooth",
@@ -52,30 +57,41 @@ camada[, which_cols] <-
 camada[, which_cols] <- lapply(camada[, which_cols], as.integer)
 # Coalescer dados de argila total
 camada[, "argila_sodio"] <- NA_real_
-clay_cols <- c("argila_sodio_pipeta", "argila_sodio_densimetro", "argila_sodio_xxx", "argila_xxx_xxx")
+clay_cols <- paste0("argila_", c("sodio_pipeta", "sodio_densimetro", "sodio_xxx", "xxx_xxx"))
 has_clay <- which(camada[, clay_cols] > 0, arr.ind = TRUE)
 has_clay_duplicated <- duplicated(has_clay[, "row"])
 if (any(has_clay_duplicated)) {
-  stop(paste0("there are ", sum(has_clay_duplicated), " layers with duplicated CLAY measurements\n"))
+  stop(paste("there are", sum(has_clay_duplicated), "layers with duplicated CLAY measurements\n"))
 } else {
   camada[has_clay[, "row"], "argila_sodio"] <- camada[, clay_cols][has_clay]
 }
 # Coalescer dados de silte
 camada[, "silte_0002mm0050mm"] <- NA_real_
-silt_cols <- c("silte_0002mm0050mm_calc", "silte_xxx_xxx")
+silt_cols <- paste0("silte_", c("0002mm0050mm_calc", "xxx_xxx"))
 has_silt <- which(camada[, silt_cols] > 0, arr.ind = TRUE)
 has_silt_duplicated <- duplicated(has_silt[, "row"])
 if (any(has_silt_duplicated)) {
-  stop(paste0("there are ", sum(has_silt_duplicated), " layers with duplicated SILT measurements\n"))
+  stop(paste("there are", sum(has_silt_duplicated), "layers with duplicated SILT measurements\n"))
 } else {
   camada[has_silt[, "row"], "silte_0002mm0050mm"] <- camada[, silt_cols][has_silt]
 }
+# Coalescer dados de areia
+camada[, "areia_0050mm2000mm"] <- NA_real_
+sand_cols <- paste0("areia_", c("0050mm2000mm_peneira", "xxx_xxx"))
+has_sand <- which(camada[, sand_cols] > 0, arr.ind = TRUE)
+has_sand_duplicated <- duplicated(has_sand[, "row"])
+if (any(has_sand_duplicated)) {
+  stop(paste("there are", sum(has_sand_duplicated), "layers with duplicated SAND measurements\n"))
+} else {
+  camada[has_sand[, "row"], "areia_0050mm2000mm"] <- camada[, sand_cols][has_sand]
+}
 
 
-
-
-idx <- which(rowSums(camada[, c("argila_sodio", "silte_0002mm0050mm")]) == 1000)
-camada[idx, c("dataset_id", "evento_id_febr", "camada_id_febr", "silte_0002mm0050mm", "argila_sodio")]
+# Corrigir distribuição do tamanho de partí
+psd <- c("argila_sodio", "silte_0002mm0050mm", "areia_0050mm2000mm")
+idx <- which(rowSums(camada[, psd]) > 1010)
+rowSums(camada[idx, psd])
+camada[idx, c("dataset_id", "evento_id_febr", "camada_id_febr", psd)]
 
 plot(camada[, c("argila_sodio", "silte_0002mm0050mm")], cex = 0.5, pch = 20)
 abline(a = 1000, b = -1)

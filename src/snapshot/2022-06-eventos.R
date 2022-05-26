@@ -1,7 +1,10 @@
-# title: Instantâneo de dezembro de 2021 - eventos
-# subtitle: Repositório de Dados do Solo Brasileiro (FEBR)
+# title: Instantâneo de Junho de 2022 - eventos
+# subtitle: Repositório de Dados do Solo Brasileiro
 # author: Alessandro Samuel-Rosa
-#
+# 
+# Documentos importantes:
+# - FEBR Dicionário de Dados v2: https://goo.gl/hi77sB
+# 
 # Instalar última versão do pacote febr diretamente o GitHub
 if (!require(remotes)) {
   install.packages(pkgs = "remotes")
@@ -10,33 +13,62 @@ remotes::install_github(repo = "laboratorio-de-pedometria/febr-package")
 library(febr)
 febr_repo <- "~/ownCloud/febr-repo/publico"
 #
-## 2021-12-eventos.txt #############################################################################
+## 2022-06-eventos.txt #############################################################################
+snapshot <- "2022-06"
 # Campos exportados da tabela 'observacao':
 eventos_cols <- c(
+  "dados_id",
   "evento_id_febr",
+  # Identificador único exclusivo do evento nos dados publicados no Repositório de Dados do Solo
+  # Brasileiro.
   "evento_id_sisb",
+  # Identificador único exclusivo do evento nos dados publicados no Sistema de Informações de Solos
+  # Brasileiros, mantido pela Embrapa Solos e Embrapa Informática Agropecuária e acessível via
+  # https://www.sisolos.cnptia.embrapa.br/.
   "evento_id_ibge",
+  # Identificador único exclusivo do evento nos dados publicados no banco de dados da Diretoria de
+  # Geociências do Instituto Brasileiro de Geografia e Estatística, acessível via
+  # https://downloads.ibge.gov.br/downloads_geociencias.htm.
   "data_coleta_ano",
+  # Ano do calendário gregoriano em que o evento foi coletado.
   "coord_longitude_grau",
+  # Longitude (grau) do par de coordenadas espaciais onde o evento foi coletado.
   "coord_latitude_grau",
+  # Latitude (grau) do par de coordenadas espaciais onde o evento foi coletado.
   "coord_datum_epsg",
+  # Código do sistema de referência de coordenadas (SRC) espaciais utilizado para georreferenciar o
+  # evento, conforme estabelecido pelo European Petroleum Survey Group (EPSG), acessível via
+  # https://www.epsg.org.
   "coord_precisao",
+  # Precisão com que o par de coordenadas espaciais do evento foram determinadas.
   "coord_fonte",
+  # Fonte ou método de obtenção do par de coordenadas espaciais do evento.
   "coord_estado_sigla",
+  # Sigla da unidade da federação brasileira onde a observação do solo foi realizada.
   "coord_municipio_nome",
+  # Nome completo do município (na data de coleta) onde o evento foi coletado.
   "subamostra_quanti",
+  # Quantidade de pontos amostrais que compõem o evento.
   "amostra_area",
+  # Área superficial utilizada para amostragem do solo.
   "sibcs_20xx_ordem",
+  # Classificação do perfil de solo no primeiro nível categórico (ordem) conforme edição do Sistema
+  # Brasileiro de Classificação do Solo (SiBCS) posterior ao ano 2000.
   "terra_uso_descricao",
+  # Descrição textual das formas de utilização humana da terra no local e imediações do evento.
   "fito_primaria_descricao",
+  # Descrição da vegetação primária (vegetação natural de máxima expressão local) do local do
+  # evento.
   "sitio_descricao"
+  # Descrição textual do sítio do evento.
 )
 # Carregar pacotes necessários
 if (!require(sf)) {
   install.packages(pkgs = "sf", dependencies = TRUE)
 }
 # Descarregar dados utilizando o nível 3 de harmonização
-vars <- c("evento_id", "sitio_descricao", "taxon_", "terra_", "fito_", "observacao_autoria")
+# vars <- c("evento_id", "sitio_descricao", "taxon_", "terra_", "fito_", "observacao_autoria")
+vars <- c("evento_id", "sitio_descricao", "sibcs_", "terra_", "fito_", "observacao_autoria")
 observacao <- febr::observation(
   data.set = "all",
   variable = vars,
@@ -76,12 +108,13 @@ for (i in has_dash) {
 # pois o número de classes e a nomenclatura utilizada são diferentes da versão atual. Nesse caso,
 # observações apenas com a classificação taxonômica antiga do SiBCS ficam sem dados
 # (`NA_character`). O código de identificação da coluna resultante da fusão das colunas de
-# cada uma das versões do SiBCS é `taxon_sibcs`.
+# cada uma das versões do SiBCS é `sibcs_20xx`.
 # O processo de fusão dos dados é realizado usando procedimento conhecido como coalescer:
 # * https://dplyr.tidyverse.org/reference/coalesce.html
 # * https://www.w3schools.com/SQL/func_sqlserver_coalesce.asp
 obs_cols <- colnames(observacao)
-taxon_cols <- grepl("^taxon_sibcs_20(.)|^taxon_sibcs_1999", obs_cols)
+# taxon_cols <- grepl("^taxon_sibcs_20(.)|^taxon_sibcs_1999", obs_cols)
+taxon_cols <- grepl("^sibcs_20(.)|^sibcs_1999", obs_cols)
 taxon_cols <- sort(obs_cols[taxon_cols], decreasing = TRUE)
 observacao[, "sibcs_20xx_ordem"] <- NA_character_
 has_taxon <- which(rowSums(is.na(observacao[, taxon_cols])) < length(taxon_cols))
@@ -100,7 +133,8 @@ for (i in has_taxon) {
 # dos dados realizada no passo anterior. Esse procedimento deve ser implementado na função
 # febr::taxonomy().
 sibcs_tabela <- febr::readVocabulary()
-idx_taxon_sibcs <- grepl("^taxon_sibcs_20(.)", sibcs_tabela[["campo_id"]])
+# idx_taxon_sibcs <- grepl("^taxon_sibcs_20(.)", sibcs_tabela[["campo_id"]])
+idx_taxon_sibcs <- grepl("^sibcs_20(.)", sibcs_tabela[["campo_id"]])
 idx_taxon_sibcs <- which(idx_taxon_sibcs)
 acronym_length <- nchar(sibcs_tabela[["campo_valorcurto"]][idx_taxon_sibcs])
 acronym_length <- max(acronym_length)
@@ -116,10 +150,10 @@ has_taxon <- is.na(observacao[["sibcs_20xx_ordem"]])
 has_taxon <- which(!has_taxon)
 observacao[has_taxon, "sibcs_20xx_ordem"] <-
   febr::taxonomy(observacao[has_taxon, "sibcs_20xx_ordem"])[, "ordem"]
+# 
 # Processar uso da terra
-# * Dados de uso da terra (terra_usoatual), nome da cultura agrícola (terra_cultura) e sistema de
-#   manejo do solo (terra_manejo) são agregados.
-# * Termos em inglês são traduzidos livremente para o português.
+# * Dados de uso da terra (terra_uso_descricao), nome da cultura agrícola (terra_cultura) e sistema
+#   de manejo do solo (terra_manejo) são agregados.
 # * Alguma limpeza é realizada, removendo espaços, quebras de linha e pontuação desnecessários. No
 #   caso de ponto final, o mesmo é removido apenas quando a cadeia de caracteres possui comprimento
 #   menor ou igual a 50.
@@ -142,23 +176,18 @@ observacao[["terra_uso_descricao"]] <-
 idx_short <- which(nchar(observacao[["terra_uso_descricao"]]) <= 50)
 observacao[idx_short, "terra_uso_descricao"] <-
   gsub(".", "", observacao[idx_short, "terra_uso_descricao"], fixed = TRUE)
-observacao[["terra_uso_descricao"]] <-
-  gsub("shrubland", "capoeira", observacao[["terra_uso_descricao"]])
-observacao[["terra_uso_descricao"]] <-
-  gsub("forestry", "silvicultura", observacao[["terra_uso_descricao"]])
-observacao[["terra_uso_descricao"]] <-
-  gsub("native forest", "floresta nativa", observacao[["terra_uso_descricao"]])
-observacao[["terra_uso_descricao"]] <-
-  gsub("crop agriculture", "cultivo agrícola", observacao[["terra_uso_descricao"]])
-observacao[["terra_uso_descricao"]] <-
-  gsub("animal husbandry", "criação animal", observacao[["terra_uso_descricao"]])
+# 
 # Atualizar campos coord_latitude e coord_longitude
 which_cols <- match(c("coord_latitude", "coord_longitude"), colnames(observacao))
 colnames(observacao)[which_cols] <- c("coord_latitude_grau", "coord_longitude_grau")
 observacao[["coord_latitude_grau"]] <- as.numeric(observacao[["coord_latitude_grau"]])
 observacao[["coord_longitude_grau"]] <- as.numeric(observacao[["coord_longitude_grau"]])
+# 
+# Atualizar campos dataset_id -> dados_id
+which_cols <- match("dataset_id", colnames(observacao))
+colnames(observacao)[which_cols] <- "dados_id"
 # Escrever tabela em disco
-file_name <- "febr-output/tmp/2021-12-eventos.txt"
+file_name <- paste0("febr-output/tmp/", snapshot, "-eventos.txt")
 write.table(observacao[, eventos_cols], file = file_name, sep = ";", dec = ",", row.names = FALSE)
 # colnames(observacao[, eventos_cols])
 # all(observacao[["coord_datum_epsg"]] == observacao[["coord_datum"]])

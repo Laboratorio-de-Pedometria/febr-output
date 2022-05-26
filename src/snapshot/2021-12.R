@@ -1,4 +1,4 @@
-# title: Instância de dezembro de 2021
+# title: Instantâneo de dezembro de 2021
 # subtitle: Repositório de Dados do Solo Brasileiro
 # author: Alessandro Samuel-Rosa
 # post: https://docs.google.com/document/d/1kwUGbrxwkzKRCARotDWyMm2YpDNfhz7PhvmUVohfjTw
