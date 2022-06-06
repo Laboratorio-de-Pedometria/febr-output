@@ -1,10 +1,10 @@
-# title: Instantâneo de Junho de 2022 - eventos
+# title: Instantâneo de Junho de 2022 - eventos de dados
 # subtitle: Repositório de Dados do Solo Brasileiro
 # author: Alessandro Samuel-Rosa
-# 
+#
 # Documentos importantes:
 # - FEBR Dicionário de Dados v2: https://goo.gl/hi77sB
-# 
+#
 # Instalar última versão do pacote febr diretamente o GitHub
 if (!require(remotes)) {
   install.packages(pkgs = "remotes")
@@ -13,8 +13,11 @@ remotes::install_github(repo = "laboratorio-de-pedometria/febr-package")
 library(febr)
 febr_repo <- "~/ownCloud/febr-repo/publico"
 #
+# Carregar funções auxiliares
+source("febr-output/instantaneo/src/help.r")
+#
 ## 2022-06-eventos.txt #############################################################################
-snapshot <- "2022-06"
+instantaneo <- "2022-06"
 # Campos exportados da tabela 'observacao':
 eventos_cols <- c(
   "dados_id",
@@ -113,7 +116,6 @@ for (i in has_dash) {
 # * https://dplyr.tidyverse.org/reference/coalesce.html
 # * https://www.w3schools.com/SQL/func_sqlserver_coalesce.asp
 obs_cols <- colnames(observacao)
-# taxon_cols <- grepl("^taxon_sibcs_20(.)|^taxon_sibcs_1999", obs_cols)
 taxon_cols <- grepl("^sibcs_20(.)|^sibcs_1999", obs_cols)
 taxon_cols <- sort(obs_cols[taxon_cols], decreasing = TRUE)
 observacao[, "sibcs_20xx_ordem"] <- NA_character_
@@ -133,7 +135,6 @@ for (i in has_taxon) {
 # dos dados realizada no passo anterior. Esse procedimento deve ser implementado na função
 # febr::taxonomy().
 sibcs_tabela <- febr::readVocabulary()
-# idx_taxon_sibcs <- grepl("^taxon_sibcs_20(.)", sibcs_tabela[["campo_id"]])
 idx_taxon_sibcs <- grepl("^sibcs_20(.)", sibcs_tabela[["campo_id"]])
 idx_taxon_sibcs <- which(idx_taxon_sibcs)
 acronym_length <- nchar(sibcs_tabela[["campo_valorcurto"]][idx_taxon_sibcs])
@@ -176,19 +177,18 @@ observacao[["terra_uso_descricao"]] <-
 idx_short <- which(nchar(observacao[["terra_uso_descricao"]]) <= 50)
 observacao[idx_short, "terra_uso_descricao"] <-
   gsub(".", "", observacao[idx_short, "terra_uso_descricao"], fixed = TRUE)
-# 
+#
 # Atualizar campos coord_latitude e coord_longitude
 which_cols <- match(c("coord_latitude", "coord_longitude"), colnames(observacao))
 colnames(observacao)[which_cols] <- c("coord_latitude_grau", "coord_longitude_grau")
 observacao[["coord_latitude_grau"]] <- as.numeric(observacao[["coord_latitude_grau"]])
 observacao[["coord_longitude_grau"]] <- as.numeric(observacao[["coord_longitude_grau"]])
-# 
+#
 # Atualizar campos dataset_id -> dados_id
 which_cols <- match("dataset_id", colnames(observacao))
 colnames(observacao)[which_cols] <- "dados_id"
 # Escrever tabela em disco
-file_name <- paste0("febr-output/tmp/", snapshot, "-eventos.txt")
-write.table(observacao[, eventos_cols], file = file_name, sep = ";", dec = ",", row.names = FALSE)
+writeTable(object = observacao[, eventos_cols], file.name = paste0(instantaneo, "-eventos.txt"))
 # colnames(observacao[, eventos_cols])
 # all(observacao[["coord_datum_epsg"]] == observacao[["coord_datum"]])
 # eventos_cols[-which(eventos_cols %in% colnames(observacao))]

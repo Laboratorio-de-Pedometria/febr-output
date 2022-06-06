@@ -1,10 +1,10 @@
-# title: Instantâneo de Junho de 2022 - camadas
+# title: Instantâneo de Junho de 2022 - camadas de dados
 # subtitle: Repositório de Dados do Solo Brasileiro
 # author: Alessandro Samuel-Rosa
-# 
+#
 # Documentos importantes:
 # - FEBR Dicionário de Dados v2: https://goo.gl/hi77sB
-# 
+#
 # Instalar última versão do pacote febr diretamente o GitHub
 if (!require(remotes)) {
   install.packages(pkgs = "remotes")
@@ -12,17 +12,22 @@ if (!require(remotes)) {
 remotes::install_github(repo = "laboratorio-de-pedometria/febr-package")
 library(febr)
 febr_repo <- "~/ownCloud/febr-repo/publico"
-#
+# Carregar funções auxiliares
+source("febr-output/instantaneo/src/help.r")
 ## 2022-06-camadas.txt #############################################################################
-snapshot <- "2022-06"
+instantaneo <- "2022-06"
 # Campos exportados da tabela 'camada':
 camada_cols <- c(
   "dados_id",
   "evento_id_febr",
-  "camada_id_febr"
+  "camada_id_febr",
+  "argila_sodio",
+  "silte_0002mm0050mm",
+  "areia_0050mm2000mm",
+  "carbono"
 )
 # Descarregar dados utilizando o nível 3 de harmonização
-vars <- c("argila", "silte", "areia")
+vars <- c("argila_", "silte_", "areia_", "carbono_")
   # "carbono_", "argila_", "silte_")
   # , "areia_", "areiagrossa2_", "areiafina2_", ,
   # "terrafina_", "cascalho_", "calhau_",
@@ -31,7 +36,7 @@ vars <- c("argila", "silte", "areia")
   # "camada_nome")
 camada <- febr::layer(
   data.set = "all",
-  # data.set = "ctb0768",
+  # data.set = "ctb0050",
   variable = vars,
   # variable = "argila",
   stack = TRUE,
@@ -85,23 +90,44 @@ if (any(has_sand_duplicated)) {
 } else {
   camada[has_sand[, "row"], "areia_0050mm2000mm"] <- camada[, sand_cols][has_sand]
 }
-
-
-# Corrigir distribuição do tamanho de partí
+# Verificar consistência dos dados de distribuição do tamanho de partículas
+# As camadas com erro são salvas em bug/2022-06-psd-total.txt
 psd <- c("argila_sodio", "silte_0002mm0050mm", "areia_0050mm2000mm")
-idx <- which(rowSums(camada[, psd]) > 1010)
-rowSums(camada[idx, psd])
-camada[idx, c("dataset_id", "evento_id_febr", "camada_id_febr", psd)]
+camada[["psd_total"]] <- rowSums(camada[, psd])
+idx_not_1000 <- which(camada[["psd_total"]] != 1000)
+bug_psd_total <-
+  camada[idx_not_1000, c("dataset_id", "evento_id_febr", "camada_id_febr", psd, "psd_total")]
+writeBug(object = bug_psd_total, file.name = paste0(instantaneo, "-psd-total.txt"))
+# Corrigir distribuição do tamanho de partículas, distribuindo o erro linearmente entre as três
+# frações de tamanho. Quando isso não for suficiente, atribuir o erro ao silte.
+camada[idx_not_1000, psd] <- round(
+  camada[idx_not_1000, psd] * 1000 / camada[idx_not_1000, "psd_total"])
+bug_psd_total <- rowSums(camada[idx_not_1000, psd])
+camada[idx_not_1000, "silte_0002mm0050mm"] <-
+  camada[idx_not_1000, "silte_0002mm0050mm"] + (1000 - bug_psd_total)
 
-plot(camada[, c("argila_sodio", "silte_0002mm0050mm")], cex = 0.5, pch = 20)
-abline(a = 1000, b = -1)
+# Coalescer dados de CARBONO
+camada[, "carbono"] <- NA_real_
+carbon_cols <- paste0("carbono_",
+  c("forno_1min950_cgdct", "cromo_30min150_mohr", "cromo_5min150_mohr", "cromo_xxx_mohr",
+  "cromo_xxx_xxx", "forno_xxx_xxx", "xxx_xxx_xxx"))
+has_carbon <- which(camada[, carbon_cols] > 0, arr.ind = TRUE)
+has_carbon_duplicated <- duplicated(has_carbon[, "row"])
+if (any(has_carbon_duplicated)) {
+  stop(paste("there are", sum(has_carbon_duplicated), "layers with duplicated CARBON measurements\n"))
+} else {
+  camada[has_carbon[, "row"], "carbono"] <- camada[, carbon_cols][has_carbon]
+}
+cmd <- camada
 
 
-par(mfrow = c(1, 2))
-plot(camada[idx, c("argila_sodio", "silte_0002mm0050mm")], cex = 0.1)
-text(camada[idx, c("argila_sodio", "silte_0002mm0050mm")], labels = camada[idx, "dataset_id"])
-plot(camada[idx, c("argila_sodio", "silte_0002mm0050mm")], cex = 0.1)
-text(camada[idx, c("argila_sodio", "silte_0002mm0050mm")], labels = camada[idx, "evento_id_febr"])
+# Atualizar campos dataset_id -> dados_id
+which_cols <- match("dataset_id", colnames(camada))
+colnames(camada)[which_cols] <- "dados_id"
+# Escrever tabela em disco
+writeTable(object = camada[, camada_cols], file.name = paste0(instantaneo, "-camadas.txt"))
+
+
 
 # camada <- febr::layer(data.set = "ctb0005", febr.repo = febr_repo, variable = vars)
 # dim(camada)
@@ -111,16 +137,3 @@ text(camada[idx, c("argila_sodio", "silte_0002mm0050mm")], labels = camada[idx, 
 # unique(camada[["dataset_id"]][idx])
 
 # class(camada[["argila_xxx_xxx"]])
-
-
-
-class(camada[, "argila_sodio_xxx"])
-
-for (i in has_clay_xxx) {
-  has_clay_water <- all(is.na(camada[i, water_cols]))
-  if (has_clay_water) {
-    camada[i, "argila_sodio_xxx"] <- as.numeric(camada[i, "argila_xxx_xxx"])
-  }
-}
-hist(as.numeric(camada[["argila_sodio_xxx"]]))
-camada[["argila_sodio_xxx"]]

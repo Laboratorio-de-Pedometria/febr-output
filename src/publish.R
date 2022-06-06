@@ -18,7 +18,7 @@ publico <- path.expand('~/ownCloud/febr-repo/publico')
 #
 # identificação dos dados a serem publicados
 # ctb <- list.dirs(processamento, recursive = FALSE, full.names = FALSE)
-ctb <- "ctb0610"
+ctb <- "ctb0050"
 
 for (i in seq_along(ctb)) {
   # i <- 1
