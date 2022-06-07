@@ -18,7 +18,7 @@ publico <- path.expand('~/ownCloud/febr-repo/publico')
 #
 # identificação dos dados a serem publicados
 # ctb <- list.dirs(processamento, recursive = FALSE, full.names = FALSE)
-ctb <- "ctb0050"
+ctb <- "ctb0641"
 
 for (i in seq_along(ctb)) {
   # i <- 1
@@ -49,9 +49,9 @@ for (i in seq_along(ctb)) {
   identificacao <- merge(x = identificacao, y = id_campo['campo'], all.y = TRUE)
   identificacao <- identificacao[match(id_campo$campo, identificacao$campo), ]
   rownames(identificacao) <- identificacao$campo
-  if (as.integer(sub("ctb", "", ctb[i])) > 100) {
-    identificacao["dados_licenca", "valor"] <- "CC BY-NC 4.0 Atribuição-NãoComercial"
-  }
+  # if (as.integer(sub("ctb", "", ctb[i])) > 100) {
+  #   identificacao["dados_licenca", "valor"] <- "CC BY-NC 4.0 Atribuição-NãoComercial"
+  # }
   file <- paste0(publico, "/", ctb[i], "/", ctb[i], "-identificacao.txt", sep = "")
   if (!dir.exists(dirname(file))) {
     dir.create(dirname(file))
