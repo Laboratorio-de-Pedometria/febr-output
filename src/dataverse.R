@@ -8,6 +8,5 @@ if (!require("dataverse")) {
 # Set environment variable DATAVERSE_SERVER
 Sys.setenv("DATAVERSE_SERVER" = "solo.mapbiomas.org")
 
-dataverse::get_dataverse(
-  dataverse = "febr",
-  server = "solo.mapbiomas.org")
+dataverse::get_dataverse(dataverse = "febr")
+dataverse::dataverse_contents(dataverse = "febr")
