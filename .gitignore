@@ -6,3 +6,4 @@ packrat/lib*/
 packrat/src/
 tmp/
 instantaneo/res/*.txt
+res/*.json
