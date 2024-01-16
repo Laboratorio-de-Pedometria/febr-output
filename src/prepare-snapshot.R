@@ -24,7 +24,7 @@
 # 6. ctc: capacidade de troca de cátions da fração terra fina, em cmol_c/kg;
 # 7. ph: pH em água da fração terra fina, sem unidade de medida;
 # 8. ce: condutividade elétrica de fração terra fina, em mS/cm;
-# 9. densidade: densidade do solo inteiro, em kg/dm^3.
+# 9. dsi: densidade do solo inteiro, em kg/dm^3.
 # 
 # Dados adicionais:
 # - profundidade superior (profund_sup) e inferior (profund_inf) da camada amostrada, em cm;
@@ -39,15 +39,16 @@ library(febr)
 # library(dplyr)
 # library(magrittr)
 
-## Tabelas identificacao
+## Tabelas "identificacao"
 identificacao <- febr::identification(dataset = "all", febr.repo = "~/ownCloud/febr-repo/publico")
 dataset <- febr::dataset(dataset = 'all')
 # str(dataset, 1)
 # sapply(dataset, colnames)
 
-
-dts_rows <- 
-  c("dataset_id", "dataset_titulo", "dataset_licenca", "dataset_versao", "publicacao_data", "palavras_chave")
+dts_rows <- c(
+  "dataset_id", "dataset_titulo", "dataset_licenca", "dataset_versao",
+  "publicacao_data", "palavras_chave"
+)
 dataset <- 
   sapply(dataset, function (x) {
     i1 <- match(dts_rows, x[[1]])
@@ -73,9 +74,10 @@ colnames(dataset) <- c(dts_rows, "area_conhecimento", "autor_nome", "organizacao
 # remover espaços duplos no título
 dataset$dataset_titulo <- gsub(pattern = '  ', replacement = ' ', x = dataset$dataset_titulo)
 
-col_order <- 
-  c("dataset_id", "dataset_titulo", "autor_nome", "organizacao_nome", "dataset_licenca", "dataset_versao",
-    "publicacao_data", "palavras_chave", "area_conhecimento")
+col_order <- c(
+  "dataset_id", "dataset_titulo", "autor_nome", "organizacao_nome", "dataset_licenca",
+  "dataset_versao", "publicacao_data", "palavras_chave", "area_conhecimento"
+)
 dataset <- dataset[col_order]
 # Alterar licença dos conjuntos de dados da Embrapa
 # dataset %<>%
@@ -85,22 +87,23 @@ dataset <- dataset[col_order]
 #     tmp = as.integer(tmp),
 #     dataset_licenca = as.character(dataset_licenca),
 #     dataset_licenca = ifelse(tmp > 100, "CC BY-NC 4.0", dataset_licenca)
-#   ) %>% 
+#   ) %>%
 #   select(-tmp)
 
 ### Salvar dados
 
 # Salvar os dados no formato TXT.
+write.table(dataset,
+  file = glue::glue("../data/febr-dataset.txt"), sep = ";", dec = ",",
+  row.names = FALSE
+)
 
-write.table(dataset, file = glue::glue("../data/febr-dataset.txt"), sep = ";", dec = ",", row.names = FALSE)
-
-## Tabelas _observacao_
+## Tabelas "observacao"
 
 ### Descarregamento
 
-# Os dados das tabelas _observacao_ de cada conjunto de dados são descarregados utilizando o nível 3 de
-# harmonização.
-
+# Os dados das tabelas "observacao" de cada conjunto de dados são descarregados utilizando o nível
+# 3 de harmonização.
 vars <- "taxon_"
 observacao <- febr::observation(
   dataset = "all", 
@@ -114,34 +117,33 @@ observacao <- febr::observation(
 
 ### Processamento
 
-# Para os três sistemas de classificação taxonômica do solo, o processamento dos dados segue os seguintes passos:
-
-# 1. Fusão das colunas com a classificação taxonômica do solo nas diferentes versões de um mesmo sistema de 
-#    classificação taxonômica. Prioridade é dada à classificação mais recente. No caso do Sistema Brasileiro de
-#    Classificação do Solo, `sibcs`, classificações até 1999 são ignoradas, pois o número de classes e a
-#    nomenclatura utilizada são diferentes da versão atual. Nesse caso, observações apenas com a classificação
-#    taxonômica antiga do `sibcs` ficam sem dados (`NA_character`). Os códigos de identificação das colunas
-#    resultantes da fusão das colunas de cada um dos três sistema de classificação taxonômica são `taxon_sibcs`,
-#    `taxon_st` e `taxon_wrb`.
-# 2. Para `taxon_sibcs`, substituição da classificação taxonômica registrada na forma de sigla pelo nome
-#    correspondente por extenso, seguida da eliminação de níveis categóricos inferiores, mantendo-se apenas o
-#    primeiro (ordem) e o segundo (subordem).
-# 3. Para `taxon_sibcs`, `taxon_st` e `taxon_wrb`, limpeza e padronização da formatação das correntes de
-#    caracteres que representam cada classificação taxonômica do solo (caixa alta, sem acentuação, sem ponto 
-#    final).
+# Para os três sistemas de classificação taxonômica do solo, o processamento dos dados segue os
+# seguintes passos:
+# 1. Fusão das colunas com a classificação taxonômica do solo nas diferentes versões de um mesmo
+# sistema de classificação taxonômica. Prioridade é dada à classificação mais recente. No caso do
+# Sistema Brasileiro de Classificação do Solos, 'sibcs', classificações até 1999 são ignoradas, pois
+# o número de classes e a nomenclatura utilizada são diferentes da versão atual. Nesse caso,
+# observações apenas com a classificação taxonômica antiga do 'sibcs' ficam sem dados
+# ('NA_character'). Os códigos de identificação das colunas resultantes da fusão das colunas de cada
+# um dos três sistema de classificação taxonômica são 'taxon_sibcs', 'taxon_st' e 'taxon_wrb'.
+# 2. Para 'taxon_sibcs', substituição da classificação taxonômica registrada na forma de sigla pelo
+# nome correspondente por extenso, seguida da eliminação de níveis categóricos inferiores,
+# mantendo-se apenas o primeiro (ordem) e o segundo (subordem).
+# 3. Para 'taxon_sibcs', 'taxon_st_' e 'taxon_wrb_', limpeza e padronização da formatação das
+# correntes de caracteres que representam cada classificação taxonômica do solo (caixa alta, sem
+# acentuação, sem ponto final).
 
 # As colunas são organizadas de maneira a:
-
-# 1. Descartar as colunas `taxon_sibcs_<...>`, `taxon_st_<...>` e `taxon_wrb_<...>`, processadas acima e 
-#    substituidas pelas colunas `taxon_sibcs`, `taxon_st` e `taxon_wrb`, respectivamente.
-# 2. Descartar a colunas `coord_sistema`, uma vez que as coordenadas espaciais de todas as observações foram
-#    padronizadas para o sistema de referência de coordenadas SIRGAS 2000 (EPSG:4674).
-# 3. Posicionar as colunas com dados de identificação -- `observacao_id_`, `sisb_id` e `ibge_id` lado-a-lado.
+# 1. Descartar as colunas 'taxon_sibcs_<...>', 'taxon_st_<...>' e 'taxon_wrb_<...>', processadas
+# acima e substituídas pelas colunas 'taxon_sibcs_', 'taxon_st_' e 'taxon_wrb', respectivamente.
+# 2. Descartar a colunas 'coord_sistema', uma vez que as coordenadas espaciais de todas as
+# observações foram padronizadas para o sistema de referência de coordenadas SIRGAS 2000
+# (EPSG:4674).
+# 3. Posicionar as colunas com dados de identificação -- 'observacao_id', 'sisb_id' e 'ibge_id'
+# lado-a-lado.
 
 # O tipo de dados das colunas também é definido aqui:
-
-# 1. Os dados da coluna `coord_precisao` são definidos como do tipo real usando `as.numeric()`.
-
+# 1. Os dados da coluna 'coord_precisao' são definidos como do tipo real usando 'as.numeric()'.
 sibcs_tabela <- 
   "1yJ_XnsJhnhJSfC3WRimfu_3_owXxpfSKaoxCiMD2_Z0" %>% 
   googlesheets::gs_key() %>% 
@@ -190,20 +192,22 @@ observacao <-
   ) %>% 
   dplyr::select(
     dataset_id, observacao_id, sisb_id, ibge_id, observacao_data, coord_x, coord_y, coord_precisao, 
-    coord_fonte, pais_id, estado_id, municipio_id, amostra_tipo, amostra_quanti, amostra_area, taxon_sibcs, 
-    taxon_st, taxon_wrb)
+    coord_fonte, pais_id, estado_id, municipio_id, amostra_tipo, amostra_quanti, amostra_area,
+    taxon_sibcs, taxon_st, taxon_wrb)
 
-mess <- 
+# Avaliar o resultado usando alguns registros selecionados aleatoriamente
+mess <-
   function (x) {
     n <- nrow(x)
     x[sample(x = seq(n), size = n), ]
   }
 mess(observacao)
 
-### Análise exploratória
-
-# observacao <- read.table(glue::glue("../data/febr-observacao.txt"), sep = ";", dec = ",", header = TRUE)
-
+### Análise exploratória dos dados
+observacao <- read.table(glue::glue("../data/febr-observacao.txt"),
+  sep = ";", dec = ",",
+  header = TRUE
+)
 tmp <-
   observacao %>% 
   dplyr::summarise(
@@ -216,11 +220,11 @@ tmp <-
   ) %T>% 
   print()
 
-# O ___febr___ dispõe de um total de 15158 observações do solo. Destas, 11970 possuem coordenadas espaciais, ou
-# seja, 11970 / 15158 * 100 = 78.9682%. A precisão mediana das coordenadas espaciais é de 100 m. A fonte de boa
-# parte das coordenadas é desconhecida, sendo o GPS a fonte mais comum (5309). Boa parte das coordenadas foi
-# estimada usando serviços de mapas online (693), ou então foram estimadas usando, por exemplo, mapas base
-# (693).
+# O FEBR dispõe de um total de 15158 observações do solo. Destas, 11970 possuem coordenadas
+# espaciais, ou seja, 11970 / 15158 * 100 = 78.9682%. A precisão mediana das coordenadas espaciais é
+# de 100 m. A fonte de boa parte das coordenadas é desconhecida, sendo o GPS a fonte mais comum
+# (5309). Boa parte das coordenadas foi estimada usando serviços de mapas online (693), ou então
+# foram estimadas usando, por exemplo, mapas base (693).
 
 br <- sf::read_sf("../data/vector/br.shp")
 tmp <- 
@@ -229,9 +233,15 @@ tmp <-
 idx <- match(br$SigUF, names(tmp))
 dens <- tmp[idx] / br$area
 dens <- dens[order(dens)]
-png("../res/fig/febr-observacao-espaco.png", width = 480 * 2, height = 480 * 2, res = 72 * 2)
-# png("../res/fig/febr-observacao-espaco-saopaulo.png", width = 480 * 3, height = 480 * 2, res = 72 * 2)
-# png("../res/fig/febr-observacao-espaco-goias.png", width = 480 * 3, height = 480 * 2, res = 72 * 2)
+png("../res/fig/febr-observacao-espaco.png",
+  width = 480 * 2, height = 480 * 2, res = 72 * 2
+)
+# png("../res/fig/febr-observacao-espaco-saopaulo.png",
+#   width = 480 * 3, height = 480 * 2, res = 72 * 2
+# )
+# png("../res/fig/febr-observacao-espaco-goias.png",
+#   width = 480 * 3, height = 480 * 2, res = 72 * 2
+# )
 plot(
   br[1], graticule = TRUE, axes = TRUE, 
   sub = Sys.Date(), 
@@ -263,18 +273,23 @@ tmp2 <-
   ) %T>% 
   print()
 
-# A distribuição espacial das observações do solo é bastante heterogênea, com inúmeros agrupamentos de 
-# observações aparecendo em várias partes do território nacional. Consequentemente, amplos vazios de observações
-# aparecem. O estado de Rondônia concentra o maior número de observações. Enquanto isso, o menor número de
-# observações parece no estado do Tocantis. Devido ao seu relativamente grande território, o estado do Tocantis
-# também possui a menor densidade de observação. A maior densidade de observação é no Distrito Federal. Em geral,
-# os estados das regiões Centro-Oeste, Norte e Nordeste são aqueles com as menores densidades de observação,
-# refletindo o histórico de ocupação do território brasileiro e os investimentos feitos no ensino e pesquisa via
-# universidades e centros de pesquisa agronômica.
+# A distribuição espacial das observações do solo é bastante heterogênea, com inúmeros agrupamentos
+# de observações aparecendo em várias partes do território nacional. Consequentemente, amplos vazios
+# de observações aparecem. O estado de Rondônia concentra o maior número de observações. Enquanto
+# isso, o menor número de observações parece no estado do Tocantis. Devido ao seu relativamente 
+# grande território, o estado do Tocantis também possui a menor densidade de observação. A maior
+# densidade de observação é no Distrito Federal. Em geral, os estados das regiões Centro-Oeste, 
+# Norte e Nordeste são aqueles com as menores densidades de observação, refletindo o histórico de
+# ocupação do território brasileiro e os investimentos feitos no ensino e pesquisa via universidades
+# e centros de pesquisa agronômica.
 
 png("../res/fig/febr-observacao-uf.png", width = 480 * 2, height = 480 * 2, res = 72 * 2)
-# png("../res/fig/febr-observacao-uf-saopaulo.png", width = 480 * 3, height = 480 * 2, res = 72 * 2)
-# png("../res/fig/febr-observacao-uf-goias.png", width = 480 * 3, height = 480 * 2, res = 72 * 2)
+# png("../res/fig/febr-observacao-uf-saopaulo.png",
+#   width = 480 * 3, height = 480 * 2, res = 72 * 2
+# )
+# png("../res/fig/febr-observacao-uf-goias.png",
+#   width = 480 * 3, height = 480 * 2, res = 72 * 2
+# )
 layout(matrix(1:2, nrow = 1), widths = c(2, 2), heights = 1, respect = FALSE)
 par(oma = c(0, 0, 1, 0), las = 1, mar = c(4, 4, 1, 1))
 tmp %>% 
@@ -306,14 +321,20 @@ title(
 grid()
 dev.off()
 
-# Das observações sem coordenadas espaciais, a maioria se encontra nos estados da Bahia, Minas Gerais, Paraná e
-# Pará. Três conjuntos de dados concentram parte considerável dessas observações -- ctb0657, ctb0831 e ctb0775
-# --, cada um com mais de 100 observações sem coordenadas espaciais. Outros 14 conjuntos de dados possuem entre
-# 50 e 100 observações sem coordenadas espaciais.
+# Das observações sem coordenadas espaciais, a maioria se encontra nos estados da Bahia, Minas
+# Gerais, Paraná e Pará. Três conjuntos de dados concentram parte considerável dessas observações
+# (ctb0657, ctb0831 e ctb0775), cada um com mais de 100 observações sem coordenadas espaciais.
+# Outros 14 conjuntos de dados possuem entre 50 e 100 observações sem coordenadas espaciais.
 
-png("../res/fig/febr-observacao-sem-coordenadas.png", width = 480 * 2, height = 480 * 2, res = 72 * 2)
-# png("../res/fig/febr-observacao-sem-coordenadas-goias.png", width = 480 * 3, height = 480 * 2, res = 72 * 2)
-# png("../res/fig/febr-observacao-sem-coordenadas-saopaulo.png", width = 480 * 3, height = 480 * 2, res = 72 * 2)
+png("../res/fig/febr-observacao-sem-coordenadas.png",
+  width = 480 * 2, height = 480 * 2, res = 72 * 2
+)
+# png("../res/fig/febr-observacao-sem-coordenadas-goias.png",
+#   width = 480 * 3, height = 480 * 2, res = 72 * 2
+# )
+# png("../res/fig/febr-observacao-sem-coordenadas-saopaulo.png",
+#   width = 480 * 3, height = 480 * 2, res = 72 * 2
+# )
 layout(matrix(1:2, nrow = 1), widths = c(2, 2), heights = 1, respect = FALSE)
 par(oma = c(0, 0, 1, 0), las = 1, mar = c(4, 4, 1, 1))
 observacao %>% 
@@ -357,8 +378,8 @@ title(
   sub = Sys.Date(), outer = TRUE)
 dev.off()
 
-observacao %>% 
-  dplyr::mutate(observacao_data = as.Date(observacao_data) %>% format("%Y")) %>% 
+observacao %>%
+  dplyr::mutate(observacao_data = as.Date(observacao_data) %>% format("%Y")) %>%
   dplyr::summarise(
     Total = dplyr::n(),
     Data = sum(!is.na(observacao_data)),
@@ -366,7 +387,7 @@ observacao %>%
     `1960-1990` = (sum(observacao_data < 1990, na.rm = TRUE) - `<1960`),
     `1990-2010` = (sum(observacao_data < 2010, na.rm = TRUE) - `<1960` - `1960-1990`),
     `2010-2019` = (sum(observacao_data < 2019, na.rm = TRUE) - `<1960` - `1960-1990` - `1990-2010`)
-    ) %>% 
+  ) %>%
   dplyr::mutate(
     `<1960` = round(`<1960` / Data * 100, 2),
     `1960-1990` = round(`1960-1990` / Data * 100, 2),
@@ -374,25 +395,31 @@ observacao %>%
     `2010-2019` = round(`2010-2019` / Data * 100, 2)
   )
 
-# Apenas cerca de 10087 / 15158 * 100 = 66.54572% das observações do solo possuem registro da data de observação.
-# Destas, metadade -- 49.26% -- foram obtidas entre 1990 e 2010. Isso se deve a um pico no ano de 1997, ano em
-# que foram obtidas as observações do solo do maior conjunto de dados disponível no ___febr___. Trata-se do
-# conjunto de dados do Zoneamento Agroecológico do Estado de Rondônia, que possui mais de 2000 observações do
-# solo. Das observações sem data de observação, acredita-se que a maioria foi produzida na década de 1970,
-# período de maior realização de levantamentos de solo no Brasil.
+# Apenas cerca de 10087 / 15158 * 100 = 66.54572% das observações do solo possuem registro da data
+# de observação. Destas, metade (49.26%) foram obtidas entre 1990 e 2010. Isso se deve a um pico no
+# ano de 1997, ano em que foram obtidas as observações do solo do maior conjunto de dados disponível
+# no FEBR. Trata-se do conjunto de dados do Zoneamento Agroecológico do Estado de Rondônia, que
+# possui mais de 2000 observações do solo. Das observações sem data de observação, acredita-se que a
+# maioria foi produzida na década de 1970, período de maior realização de levantamentos de solo no
+# Brasil.
 
-# A distribuição das observações do solo no tempo mostra que há um vazio entre as décadas de 1980 e 1990. Esse
-# período foi marcado pelo término dos principais projetos/programas de mapeamento do solo em larga escala no 
-# Brasil. Contudo, como parte considerável das observações do solo não possui informação sobre a data de 
-# observação, não é possível identificar a razão do vazio com precisão.
+# A distribuição das observações do solo no tempo mostra que há um vazio entre as décadas de 1980 e
+# 1990. Esse período foi marcado pelo término dos principais projetos/programas de mapeamento do
+# solo em larga escala no Brasil. Contudo, como parte considerável das observações do solo não
+# possui informação sobre a data de observação, não é possível identificar a razão do vazio com
+# precisão.
 
 observacao[!is.na(observacao$coord_x), c("coord_x", "coord_y", "observacao_data")] %>% 
   duplicated() %>% 
   sum()
 
 png("../res/fig/febr-observacao-tempo.png", width = 480 * 2, height = 480 * 2, res = 72 * 2)
-# png("../res/fig/febr-observacao-tempo-saopaulo.png", width = 480 * 3, height = 480 * 2, res = 72 * 2)
-# png("../res/fig/febr-observacao-tempo-goias.png", width = 480 * 3, height = 480 * 2, res = 72 * 2)
+# png("../res/fig/febr-observacao-tempo-saopaulo.png",
+#   width = 480 * 3, height = 480 * 2, res = 72 * 2
+# )
+# png("../res/fig/febr-observacao-tempo-goias.png",
+#   width = 480 * 3, height = 480 * 2, res = 72 * 2
+# )
 par(oma = c(0, 0, 0, 0), las = 1, mar = c(4, 4, 2, 1))
 tmp <- 
   observacao %>% 
@@ -429,14 +456,20 @@ tmp %>%
 # barplot(tmp, col = "firebrick1", border = "firebrick1", add = TRUE, xaxt = "n", yaxt = "n")
 dev.off()
 
-# A maioria das observações com data de observação desconhecida pertencem a conjuntos de dados que abrangem os
-# estados do Amazonas, Santa Catarina, Bahia, Rio Grande do Sul, Pará, Minas Gerais e Paraná. Dentre estes, três
-# conjuntos de dados se destacam pelo grande número de observações sem data. São eles: ctb0572, ctb0770 e
-# ctb0657.
+# A maioria das observações com data de observação desconhecida pertencem a conjuntos de dados que
+# abrangem os estados do Amazonas, Santa Catarina, Bahia, Rio Grande do Sul, Pará, Minas Gerais e
+# Paraná. Dentre estes, três conjuntos de dados se destacam pelo grande número de observações sem
+# data. São eles: ctb0572, ctb0770 e ctb0657.
 
-png("../res/fig/febr-observacao-sem-data.png", width = 480 * 2, height = 480 * 2, res = 72 * 2)
-# png("../res/fig/febr-observacao-sem-data-goias.png", width = 480 * 2, height = 480 * 2, res = 72 * 2)
-# png("../res/fig/febr-observacao-sem-data-saopaulo.png", width = 480 * 3, height = 480 * 2, res = 72 * 2)
+png("../res/fig/febr-observacao-sem-data.png",
+  width = 480 * 2, height = 480 * 2, res = 72 * 2
+)
+# png("../res/fig/febr-observacao-sem-data-goias.png",
+#   width = 480 * 2, height = 480 * 2, res = 72 * 2
+# )
+# png("../res/fig/febr-observacao-sem-data-saopaulo.png",
+#   width = 480 * 3, height = 480 * 2, res = 72 * 2
+# )
 layout(matrix(1:2, nrow = 1), widths = c(2, 2), heights = 1, respect = FALSE)
 par(oma = c(0, 0, 1, 0), las = 1, mar = c(4, 4, 1, 1))
 observacao %>% 
@@ -481,14 +514,12 @@ title(
 dev.off()
 
 ### Salvar dados
+# Salvar os dados no formato TXT
+write.table(observacao,
+  file = glue::glue("../data/febr-observacao.txt"), sep = ";", dec = ",", row.names = FALSE
+)
 
-# Salvar os dados no formato TXT.
-
-write.table(
-  observacao, file = glue::glue("../data/febr-observacao.txt"), sep = ";", dec = ",", row.names = FALSE)
-
-## Tabelas _camada_
-
+## Tabelas 'camada'
 vars <- c(
   "carbono",
   "argila", "areia", "areiagrossa2", "areiafina2", "silte",
@@ -522,16 +553,15 @@ camada <- febr::layer(
 #     c(dataset = x$dataset_id[1], classe = classe)
 #   }) %>%
 #   do.call(rbind, .)
-```
 
 ### Processamento
+# O processamento dos dados das variáveis prioritárias das tabelas 'camada' segue os seguintes
+# passos:
+# 1. (em construção)
 
-# O processamento dos dados das variáveis prioritárias das tabelas `camada` segue os seguintes passos:
-
-# Em seguida, as colunas dos dados de cada variável prioritária determinadas usando métodos parcialmente
-# distintos são fundidas usando usando `dplyr::coalesce()`.
-
-camada %<>% 
+# Em seguida, as colunas dos dados de cada variável prioritária determinadas usando métodos
+# parcialmente distintos são fundidas usando usando 'dplyr::coalesce()'.
+camada %<>%
   dplyr::mutate(
     carbono = dplyr::coalesce(carbono_cromo, carbono_xxx, carbono_forno),
     argila = dplyr::coalesce(argila_naoh, argila_xxx),
@@ -546,24 +576,26 @@ camada %<>%
     ce = dplyr::coalesce(ce_pastasat),
     cascalho = dplyr::coalesce(cascalho_peneira, cascalho_olho, cascalho_xxx),
     calhau = dplyr::coalesce(calhau_peneira, calhau_xxx)
-  ) %T>% 
+  ) %T>%
   print()
 
-# Após a fusão das colunas com dados da mesma variável, faz-se ajustes nos dados das frações granulométricas. 
-# Primeiro, na falta de uma das duas frações granulométricas finas, `argila` ou `silte`, calcula-se seu valor 
-# como sendo a diferença entre 1000 g/kg e a soma das duas outras frações granulométricas. Na falta dos dados do
-# conteúdo de areia total -- `areia`, primeiro se usa (quando disponível) a soma dos dados do conteúdo de areia
-# grossa -- `areiagrossa` -- e areia fina `areiafina`. Caso não estejam disponíveis, então se usa a estratégia 
-# anterior. A seguir, verifica-se se a soma dos valores inteiros das três frações é igual a 1000 g/kg. Caso não 
-# seja -- a diferença geralmente é de 1 g/kg para menos ou para mais --, então altera-se os dados do conteúdo de
-# silte total de maneira que a soma seja igual a 1000 g/kg. Finalmente, faz-se o processamento dos dados das
-# frações granulométricas grossas calhau -- `calhau` --, cascalho -- `cascalho` -- e terra fina -- `terrafina`.
-# na ausência da última, utiliza-se as demais para sua estimativa. Caso todas as frações estejam faltando, então
-# assume-se que o conteúdo da fração terra fina seja igual a 1000 g/kg. Isso porque é comum os trabalhos omitirem
-# o conteúdo de terra fina quando a mesma corresponde a totalidade do solo.
+# Após a fusão das colunas com dados da mesma variável, faz-se ajustes nos dados das frações
+# granulométricas. Primeiro, na falta de uma das duas frações granulométricas finas, 'argila' ou
+# 'silte', calcula-se seu valor como sendo a diferença entre 1000 g/kg e a soma das duas outras
+# frações granulométricas. Na falta dos dados do conteúdo de areia total ('areia'), primeiro se usa
+# (quando disponível) a soma dos dados do conteúdo de areia grossa ('areiagrossa') e areia fina
+# ('areiafina'). Caso não estejam disponíveis, então se usa a estratégia anterior. A seguir,
+# verifica-se se a soma dos valores inteiros das três frações é igual a 1000 g/kg. Caso não seja
+# (a diferença geralmente é de 1 g/kg para menos ou para mais), então altera-se os dados do conteúdo
+# de silte total de maneira que a soma seja igual a 1000 g/kg. Finalmente, faz-se o processamento
+# dos dados das frações granulométricas grossas calhau ('calhau'), cascalho ('cascalho') e terra
+# fina ('terrafina'). Na ausência da última, utiliza-se as demais para sua estimativa. Caso todas as
+# frações estejam faltando, então assume-se que o conteúdo da fração terra fina seja igual a
+# 1000 g/kg. Isso porque é comum os trabalhos omitirem o conteúdo de terra fina quando a mesma
+# corresponde a totalidade do solo.
 
 correct_depth <-
-  function (profund.sup, profund.inf) {
+  function(profund.sup, profund.inf) {
     res <- as.matrix(data.frame(profund.sup, profund.inf))
     if (any(profund.inf < profund.sup, na.rm = TRUE)) {
       id <- which(profund.inf < profund.sup)
@@ -612,14 +644,16 @@ camada %<>%
   ) %>% 
   dplyr::ungroup()
 
-# A última etapa de processamento lida com os dados da profundidade do solo, especificamente, com as camadas
-# compostas por material orgânico. Em geral, o registro dessas camadas é realizado fixando o limite inferior como
-# sendo igual a zero. Isso gera uma sequência invertida de valores de profundidade. Por exemplo, uma camada com 
-# profundidade de 3--0 cm representa uma camada orgânica de três centímetros de espessura acima das camadas de
-# material mineral do solo. Em alguns casos a profundidade superior pode ser negativa, por exemplo, -3--0 cm. O
-# processamento desses dados consiste em ajustar a profundidade superior do solo a profundidade superior da 
-# camada de material orgânico do solo, definida assim como sendo igual a zero centímetros de profundidade.
+# A última etapa de processamento lida com os dados da profundidade do solo, especificamente, com as
+# camadas compostas por material orgânico. Em geral, o registro dessas camadas é realizado fixando o
+# limite inferior como sendo igual a zero. Isso gera uma sequência invertida de valores de
+# profundidade. Por exemplo, uma camada com profundidade de 3--0 cm representa uma camada orgânica
+# de três centímetros de espessura acima das camadas de material mineral do solo. Em alguns casos a
+# profundidade superior pode ser negativa, por exemplo, -3--0 cm. O processamento desses dados
+# consiste em ajustar a profundidade superior do solo a profundidade superior da camada de material
+# orgânico do solo, definida assim como sendo igual a zero centímetros de profundidade.
 
+# Selecionar as colunas de interesse.
 camada %<>% 
   dplyr::select(
     dataset_id, observacao_id, camada_id, amostra_id, camada_nome, profund_sup, profund_inf,
@@ -628,8 +662,7 @@ camada %<>%
 
 ### Análise exploratória
 
-# Verificar a distribuição empírica dos dados, procurando por insconsistências nos dados.
-
+# Verificar a distribuição empírica dos dados, procurando por inconsistências nos dados.
 png("../res/fig/febr-camada.png", width = 480 * 2, height = 480 * 2, res = 72 * 2)
 par(oma = c(0, 0, 1, 0), las = 1)
 camada %>% 
@@ -660,7 +693,7 @@ camada %>%
   plot(
     cex = 0.5, col = "firebrick1", 
     main = "Distribuição empírica dos dados",
-    # main = "Empirical data distribuion",
+    # main = "Empirical data distribution",
     sub = glue::glue("{Sys.Date()}-febr-camada"))
 dev.off()
 
@@ -695,24 +728,23 @@ camada %>%
   plot(
     cex = 0.5, col = "firebrick1",
     main = "Distribuição empírica dos dados (< 200 cm)",
-    # main = "Empirical data distribuion (< 200 cm)",
+    # main = "Empirical data distribution (< 200 cm)",
     sub = glue::glue("{Sys.Date()}-febr-camada"))
 dev.off()
 
 ### Salvar dados
-
 # Salvar os dados no formato TXT.
+write.table(camada,
+  file = glue::glue("../data/febr-camada.txt"), sep = ";", dec = ",", row.names = FALSE
+)
 
-write.table(camada, file = glue::glue("../data/febr-camada.txt"), sep = ";", dec = ",", row.names = FALSE)
-
-## Tabelas _dataset_ + _observacao_ + _camada_
-
+## Fundir tabelas 'dataset', 'observacao' e 'camada'
 febr <- 
   merge(dataset, observacao, by = "dataset_id") %>% 
   merge(camada, by = c("dataset_id", "observacao_id"))
 
 ### Salvar dados
-
-# Salvar os dados no formato TXT.
-
-write.table(febr, file = "../data/febr-superconjunto.txt", sep = ";", dec = ",", row.names = FALSE)
+# Salvar os dados no formato TXT
+write.table(febr,
+  file = "../data/febr-superconjunto.txt", sep = ";", dec = ",", row.names = FALSE
+)
