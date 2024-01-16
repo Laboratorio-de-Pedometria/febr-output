@@ -2,11 +2,11 @@
 # subtitle: FEBR snapshot
 # author: "Alessandro Samuel-Rosa"
 # 
-# Apresentacão
+# Apresentação
 # 
 # Processamento de dados do solo de diversos conjuntos de dados publicados no FEBR.
-# Os dados passam por limpeza, padronizaćão e, quando possível, harmonizaćão.
-# O (super)conjunto de dados resultante é disponibilicado num único arquivo TXT para reúso.
+# Os dados passam por limpeza, padronização e, quando possível, harmonização.
+# O (super)conjunto de dados resultante é disponibilizado num único arquivo TXT para reúso.
 # 
 # Variáveis incluídas
 # 
@@ -29,7 +29,7 @@
 # Dados adicionais:
 # - profundidade superior (profund_sup) e inferior (profund_inf) da camada amostrada, em cm;
 # - data de observação ou amostragem do solo (observacao_data);
-# - coordenadas do local de observaćão ou amostragem do solo (coord_x e coord_y), em graus decimais,
+# - coordenadas do local de observação ou amostragem do solo (coord_x e coord_y), em graus decimais,
 #   usando SIRGAS 2000 (EPSG:4674) como sistema de referência de coordenadas.
 #   
 # Os procedimentos de limpeza dos dados são descritos abaixo. Já os procedimentos de padronização e
@@ -382,7 +382,7 @@ observacao %>%
 # período de maior realização de levantamentos de solo no Brasil.
 
 # A distribuição das observações do solo no tempo mostra que há um vazio entre as décadas de 1980 e 1990. Esse
-# período foi marcado pelo término dos principas projetos/programas de mapeamento do solo em larga escala no 
+# período foi marcado pelo término dos principais projetos/programas de mapeamento do solo em larga escala no 
 # Brasil. Contudo, como parte considerável das observações do solo não possui informação sobre a data de 
 # observação, não é possível identificar a razão do vazio com precisão.
 
