@@ -89,12 +89,12 @@ for (i in soildata_metadata[1, ctb]) {
     cat("Description:", description, "\n")
     dataverse::add_dataset_file(
       file = file,
-      dataset = soildata_metadata[ctb == i, doi]
+      dataset = soildata_metadata[ctb == i, doi],
       description = description
     )
   }
-  dataverse::publish_dataset(
-    dataset = soildata_metadata[ctb == i, doi],
-    minor = FALSE
-  )
+  # dataverse::publish_dataset(
+  #   dataset = soildata_metadata[ctb == i, doi],
+  #   minor = FALSE
+  # )
 }
