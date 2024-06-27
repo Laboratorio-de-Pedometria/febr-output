@@ -42,90 +42,59 @@ soildata_metadata <- lapply(soildata_contents, function(x) {
   } else {
     has_files <- FALSE
   }
-  return(data.frame(ctb = ctb, has_files = has_files))
+  return(data.frame(ctb = ctb, has_files = has_files, doi = x[["persistentUrl"]]))
 })
 soildata_metadata <- data.table::rbindlist(soildata_metadata)
 
-# Filter out the records with NA in the 'ctb' field. These records are not included in FEBR.
-soildata_metadata <- soildata_metadata[!is.na(ctb), ]
-
-# Create a columns identifying records that can be discarded, i.e. with NA in the 'ctb' field and
-# 'has_files' equal to TRUE
-soildata_metadata[, discard := is.na(ctb) | has_files]
+# Check if there are any duplicated records in the SoilData metadata
+soildata_metadata[!is.na(ctb), ][duplicated(ctb), ]
 
 # Read FEBR index
 febr_index <- data.table::fread("/home/alessandro/ownCloud/febr-repo/publico/febr-indice.txt")
+
+# Check if there are any duplicated records in the FEBR index
+febr_index[duplicated(dados_id), .(dados_id, dados_acesso)]
 
 # Check if any FEBR datasets (dados_id) is not published in SoilData (ctb)
 febr_index[!dados_id %in% soildata_metadata$ctb, .(dados_id, dados_acesso)]
 
 # Check if any SoilData datasets (ctb) is not in the FEBR index
-soildata_metadata[!ctb %in% febr_index$dados_id, .(ctb)]
+soildata_metadata[!is.na(ctb), ][!ctb %in% febr_index$dados_id, .(ctb)]
 
-nrow(febr_index)
-nrow(soildata_metadata)
-soildata_metadata[250, ctb]
+# Filter out the records with NA in the 'ctb' field. These records are not included in FEBR.
+# Filter out the records with 'has_files' equal to TRUE. These records are already published in the
+# SoilData Dataverse instance.
+soildata_metadata <- soildata_metadata[!is.na(ctb) & !has_files]
 
-
-
-
-# Filter out the FEBR records that can be discarded. Keep only the fields dados_id e dados_acesso.
-febr_index <- febr_index[!soildata_metadata$discard, .(dados_id, dados_acesso)]
-
-
-# Loop over febr_index
-
-
-
+# Loop over soildata_metadata ctb values and publish their files to SoilData
+febr_dir <- "/home/alessandro/ownCloud/febr-repo/publico/"
+febr_filenames <- c("full", "camada", "identificacao", "metadado", "versionamento", "observacao")
 dts_description <- list(
-  full = "Planilha com os arquivos TXT individuais incluídos como abas para compartilhamento facilitado",
   camada = "Dados químicos e físicos das amostras obtidas de camadas e horizontes do solo",
   identificacao = "Dados de identificação dos autores e dos dados como um todo",
-  metodo = "Descrição dos métodos utilizados em campo e laboratório para obtenção dos dados de solo",
-  historico = "Dados do histórico de modificação dos dados",
-  evento = "Dados ambientais e de referência espacial e temporal dos pontos de observação e amostragem do solo"
+  metadado = "Descrição dos métodos utilizados em campo e laboratório para obtenção dos dados de solo",
+  versionamento = "Dados do histórico de modificação dos dados",
+  observacao = "Dados ambientais e de referência espacial e temporal dos pontos de observação e amostragem do solo"
 )
-
-febr_dir <- "/home/alessandro/ownCloud/febr-repo/publico/"
-febr_filenames <- c("full", "camada", "identificacao", "metodo", "historico", "evento")
-
-
-if (full) {
-  dataverse::add_dataset_file(
-    file = paste0(febr_dir, ctb, "/", ctb, ".xlsx"),
-    dataset = "https://doi.org/10.60502/SoilData/S3O6GO",
-    description = dts_description$full
+for (i in soildata_metadata[1, ctb]) {
+  for (j in febr_filenames) {
+    if (j == "full") {
+      file <- paste0(febr_dir, i, "/", i, ".xlsx")
+      description <- "Planilha com os arquivos TXT individuais incluídos como abas para compartilhamento facilitado"
+    } else {
+      file <- paste0(febr_dir, i, "/", i, "-", j, ".txt")
+      description <- dts_description[[j]]
+    }
+    cat("Adding file", file, "to dataset", soildata_metadata[ctb == i, doi], "\n")
+    cat("Description:", description, "\n")
+    dataverse::add_dataset_file(
+      file = file,
+      dataset = soildata_metadata[ctb == i, doi]
+      description = description
+    )
+  }
+  dataverse::publish_dataset(
+    dataset = soildata_metadata[ctb == i, doi],
+    minor = FALSE
   )
-} else {
-
 }
-
-dataverse::add_dataset_file(
-  file = paste0("/home/alessandro/ownCloud/febr-repo/publico/", ctb, "/", ctb, ".xlsx"),
-  dataset = "https://doi.org/10.60502/SoilData/S3O6GO",
-  description = "Planilha com os arquivos TXT individuais incluídos como abas para compartilhamento facilitado"
-)
-dataverse::add_dataset_file(
-  file = "/home/alessandro/ownCloud/febr-repo/publico/ctb0001/ctb0001-camada.txt",
-  dataset = "https://doi.org/10.60502/SoilData/S3O6GO",
-  description = "Dados químicos e físicos das amostras obtidas de camadas e horizontes do solo"
-)
-dataverse::add_dataset_file(
-  file = "/home/alessandro/ownCloud/febr-repo/publico/ctb0001/ctb0001-identificacao.txt",
-  dataset = "https://doi.org/10.60502/SoilData/S3O6GO",
-  description = "Dados de identificação dos autores e dos dados como um todo"
-)
-dataverse::add_dataset_file(
-  file = "/home/alessandro/ownCloud/febr-repo/publico/ctb0001/ctb0001-metodo.txt",
-  dataset = "https://doi.org/10.60502/SoilData/S3O6GO",
-  description = "Descrição dos métodos utilizados em campo e laboratório para obtenção dos dados de solo"
-)
-dataverse::add_dataset_file(
-  file = "/home/alessandro/ownCloud/febr-repo/publico/ctb0001/ctb0001-historico.txt",
-  dataset = "https://doi.org/10.60502/SoilData/S3O6GO",
-  description = "Dados do histórico de modificação dos dados"
-)
-
-
-dataverse::publish_dataset(
-  dataset = "https://doi.org/10.60502/SoilData/S3O6GO", minor = FALSE)
