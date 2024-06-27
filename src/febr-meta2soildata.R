@@ -1,4 +1,4 @@
-# title: Load and publish datasets to the SoilData Dataverse instance
+# title: Load and publish FEBR metadata to the SoilData Dataverse instance
 # author: Alessandro Samuel-Rosa
 # description: This script loads datasets from the FEBR repository and publishes them to the
 # SoilData Dataverse instance. The script reads the FEBR index file, which contains metadata
